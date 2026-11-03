@@ -1,0 +1,7 @@
+nimcache/
+# compiled binaries
+tests/*
+!tests/*.nim
+!tests/config.nims
+examples/*
+!examples/*.nim
