@@ -52,6 +52,7 @@ suite "canonical SMILES":
         let p = m.shuffled(r)
         checkpoint s & " canonical " & c
         check p.toSmiles == c
+        check p.toSmiles(kekule = true) == m.toSmiles(kekule = true)
         # non-canonical output from a shuffled order must parse back to the same molecule
         check canonicalSmiles(p.toSmiles(canonical = false)) == c
 

@@ -1,8 +1,9 @@
 ## Reads SMILES (one per line, first whitespace-separated field) from stdin
-## and prints tab-separated: input, canonical SMILES, formula, MW, exact mass.
+## and prints tab-separated: input, canonical SMILES, formula, MW, exact mass,
+## number of aromatic atoms.
 ## Unparseable lines are reported as "ERROR<tab>message".
 
-import std/[strutils, strformat]
+import std/[strutils, strformat, sequtils]
 import chem
 
 for line in stdin.lines:
@@ -10,6 +11,7 @@ for line in stdin.lines:
   if smi.len == 0: continue
   try:
     let m = parseSmiles(smi[0])
-    echo &"{smi[0]}\t{m.toSmiles}\t{m.molecularFormula}\t{m.molWeight:.4f}\t{m.exactMass:.5f}"
+    let nArom = m.atoms.countIt(it.aromatic)
+    echo &"{smi[0]}\t{m.toSmiles}\t{m.molecularFormula}\t{m.molWeight:.4f}\t{m.exactMass:.5f}\t{nArom}"
   except ChemError as e:
     echo &"{smi[0]}\tERROR\t{e.msg}"

@@ -9,6 +9,11 @@ echo "rings:     ", aspirin.numRings
 echo "rot bonds: ", aspirin.numRotatableBonds
 echo "canonical: ", aspirin.toSmiles
 echo "as input:  ", aspirin.toSmiles(canonical = false)
+echo "kekule:    ", aspirin.toSmiles(kekule = true)
+echo "sssr:      ", aspirin.sssr
+
+# Kekule and aromatic input give the same molecule
+echo canonicalSmiles("C1=CC=CN1"), " == ", canonicalSmiles("c1cc[nH]c1")
 
 # Build a molecule programmatically: acetonitrile
 var m: Mol

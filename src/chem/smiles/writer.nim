@@ -5,7 +5,7 @@
 ## canonical ranks (see `canon.nim`) the output is a canonical SMILES.
 
 import std/[algorithm, sequtils, strutils]
-import ../[mol, elements, valence, canon, rings]
+import ../[mol, elements, valence, canon, rings, aromaticity]
 
 type
   Writer = object
@@ -222,10 +222,23 @@ proc toSmilesWithRanks*(m: Mol; ranks: seq[int]): string =
     parts.add w.output
   parts.join(".")
 
-proc toSmiles*(m: Mol; canonical = true): string =
+proc toSmiles*(m: Mol; canonical = true; kekule = false): string =
   ## Writes a SMILES string. With `canonical` (default) the result is
-  ## independent of the input atom order.
-  if canonical:
+  ## independent of the input atom order. With `kekule`, aromatic systems
+  ## are written as alternating single/double bonds (uppercase atoms).
+  if kekule:
+    # kekulize in canonical atom order so the double-bond placement is
+    # canonical too
+    var k =
+      if canonical:
+        let ranks = canonicalRanks(m)
+        var order = newSeq[int](m.numAtoms)
+        for i, r in ranks: order[r] = i
+        m.renumberAtoms(order)
+      else: m
+    kekulize(k)
+    toSmilesWithRanks(k, toSeq(0..<k.numAtoms))
+  elif canonical:
     toSmilesWithRanks(m, canonicalRanks(m))
   else:
     toSmilesWithRanks(m, toSeq(0..<m.numAtoms))

@@ -18,14 +18,22 @@ echo canonicalSmiles("OCC") == canonicalSmiles("C(O)C")   # true
   (isotope, `@`/`@@`, H count, charge, atom maps), all bond types incl. `/` `\`,
   branches, ring closures (`%nn`), `.` components. Errors raise `SmilesError`
   with a character position.
-- **SMILES writing**, canonical (default) or in input order.
+- **SMILES writing**, canonical (default) or in input order, aromatic
+  (default) or Kekulé (`toSmiles(kekule = true)`).
+- **Aromaticity**: Kekulization (`kekulize`, via a blossom matching, so odd
+  fused systems like azulene work) and perception (`setAromaticity`, Hückel
+  4n+2 over SSSR rings and fused combinations, RDKit-compatible electron
+  counting). Parsing sanitizes by default, so `C1=CC=CC=C1` and `c1ccccc1`
+  give the same molecule and canonical SMILES; impossible aromatic input
+  raises `KekulizeError`.
+- **Rings**: SSSR (`sssr`), ring bonds/atoms, ring count.
 - **Canonical ranking** by iterative partition refinement + tie-breaking.
 - **Valence model**: implicit hydrogens, charge-aware allowed valences,
   over-valence detection (`ValenceError`, disable with `sanitize = false`).
 - **Descriptors**: Hill formula, average MW, monoisotopic mass, atom/heavy
   atom/bond/ring counts, rotatable bonds.
 - **Graph API**: build molecules with `addAtom`/`addBond`, `renumberAtoms`
-  (stereo-preserving), ring bonds/atoms, connected components.
+  (stereo-preserving), connected components.
 
 ## Modules
 
@@ -34,7 +42,8 @@ echo canonicalSmiles("OCC") == canonicalSmiles("C(O)C")   # true
 | `chem/mol` | `Mol`, `Atom`, `Bond` types and graph operations |
 | `chem/elements` | periodic table: symbols, masses, default valences |
 | `chem/valence` | implicit H, valence validation |
-| `chem/rings` | ring-bond detection, components, ring count |
+| `chem/rings` | SSSR, ring-bond detection, components, ring count |
+| `chem/aromaticity` | Kekulization, aromaticity perception, `sanitize` |
 | `chem/canon` | canonical atom ranks |
 | `chem/smiles/parser`, `chem/smiles/writer` | SMILES I/O |
 | `chem/descriptors` | formula, masses, counts |
@@ -46,18 +55,19 @@ nimble test                          # unit tests
 python tools/rdkit_crosscheck.py     # compare against RDKit (needs rdkit)
 ```
 
-On RDKit's bundled 5K NCI set (4,991 molecules RDKit can read): all formulas
-and exact masses agree, every canonical SMILES round-trips to the same
-structure in RDKit, and canonical output is the same for randomised input
+On RDKit's bundled 5K NCI set (4,991 molecules RDKit can read, written in
+Kekulé form): all formulas, exact masses and aromatic atom counts agree,
+every canonical SMILES round-trips to the same structure in RDKit, and
+canonical output is the same for randomised aromatic and Kekulé input
 SMILES. One molecule (a Mg chelate) is rejected by our valence check.
 
 ## Known limitations
 
-- **No aromaticity perception or Kekulization**: `C1=CC=CC=C1` and `c1ccccc1`
-  are kept as written and give different canonical SMILES. Implicit H on
-  aromatic atoms uses a heuristic rather than a Kekulé structure, and
-  over-valent aromatic atoms are not detected: `c1ccccc1(C)C` is accepted
-  (giving a wrong formula) where RDKit rejects it.
+- **Aromaticity model**: follows RDKit's default model on everything
+  tested, but is an independent implementation. Fused ring combinations are
+  only considered up to 6 rings at a time, and neutral boron is never
+  aromatic (as in RDKit). With `sanitize = false` no kekulization or
+  perception happens, and aromatic flags are kept exactly as written.
 - **Canonical SMILES is not unique for some stereoisomers**: stereo tags are
   carried through correctly but are not used in canonical ranking, and ties
   between symmetric atoms are broken by input order. So the same molecule

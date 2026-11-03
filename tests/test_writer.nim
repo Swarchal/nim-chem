@@ -32,16 +32,18 @@ suite "SMILES writer":
     check canonicalSmiles("[Na+].[Cl-]") == canonicalSmiles("[Cl-].[Na+]")
 
 suite "SMILES writer regressions":
-  test "non-ring aromatic bond round-trips":
-    let m = parseSmiles("c1ccccc1:c1ccccc1")
+  test "non-ring aromatic bond round-trips (unsanitized)":
+    let m = parseSmiles("c1ccccc1:c1ccccc1", sanitize = false)
     let out1 = m.toSmiles
     check ":" in out1
-    let back = parseSmiles(out1)
+    let back = parseSmiles(out1, sanitize = false)
     var nArom = 0
     for bd in back.bonds:
       if bd.order == boAromatic: inc nArom
     check nArom == 13
-    check out1 != canonicalSmiles("c1ccccc1-c1ccccc1")
+
+  test "sanitizing turns a non-ring aromatic bond into a single bond":
+    check canonicalSmiles("c1ccccc1:c1ccccc1") == canonicalSmiles("c1ccccc1-c1ccccc1")
 
   test "unspecified bond order raises instead of writing '~'":
     var m: Mol

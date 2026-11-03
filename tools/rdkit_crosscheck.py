@@ -6,7 +6,9 @@ Usage: python tools/rdkit_crosscheck.py [smiles_file]
 Checks per molecule:
   * formula (element counts + charge) and exact mass agree with RDKit
   * our canonical SMILES describes the same structure (RDKit canonical of ours == of input)
-  * our canonical SMILES is invariant to RDKit-randomised input SMILES
+  * the number of aromatic atoms matches RDKit's default aromaticity model
+  * our canonical SMILES is invariant to RDKit-randomised input SMILES, in
+    both aromatic and Kekule form
 Average-MW differences are only reported: RDKit uses some older standard
 atomic weights (e.g. S 32.067 vs IUPAC 32.06).
 """
@@ -33,6 +35,7 @@ def formula_counts(f):
 
 
 def run(smiles):
+    """Run smiprops; returns rows of input, canonical, formula, MW, exact mass, #aromatic."""
     out = subprocess.run([exe], input="\n".join(smiles), capture_output=True, text=True, check=True).stdout
     return [l.split("\t") for l in out.splitlines()]
 
@@ -49,18 +52,29 @@ for line in open(path):
 # one batch: original inputs, RDKit canonical, then N_RANDOM random SMILES each
 inputs = [s for s, _, _ in mols]
 base = [can for _, _, can in mols]
-rand = [Chem.MolToSmiles(rd, doRandom=True) for _, rd, _ in mols for _ in range(N_RANDOM)]
+def random_smiles(rd, j):
+    """Alternate aromatic and Kekule random SMILES."""
+    if j % 2:
+        k = Chem.Mol(rd)
+        Chem.Kekulize(k, clearAromaticFlags=True)
+        return Chem.MolToSmiles(k, doRandom=True, kekuleSmiles=True)
+    return Chem.MolToSmiles(rd, doRandom=True)
+
+rand = [random_smiles(rd, j) for _, rd, _ in mols for j in range(N_RANDOM)]
 rows = run(inputs + base + rand)
 n = len(mols)
 in_rows, base_rows, rand_rows = rows[:n], rows[n:2 * n], rows[2 * n:]
 
-stats = dict(n=n, parse_err=0, formula=0, exact_mass=0, structure=0, invariance=0)
+stats = dict(n=n, parse_err=0, formula=0, exact_mass=0, aromatic=0, structure=0, invariance=0)
 fails = {k: [] for k in stats}
 mw_diff = 0
 for i, ((smi, rd, rd_can), row) in enumerate(zip(mols, in_rows)):
     if row[1] == "ERROR":
         stats["parse_err"] += 1; fails["parse_err"].append((smi, row[2])); continue
-    can, formula, mw, exact = row[1], row[2], float(row[3]), float(row[4])
+    can, formula, mw, exact, n_arom = row[1], row[2], float(row[3]), float(row[4]), int(row[5])
+    rd_arom = sum(a.GetIsAromatic() for a in rd.GetAtoms())
+    if n_arom != rd_arom:
+        stats["aromatic"] += 1; fails["aromatic"].append((smi, can, rd_can))
     if formula_counts(formula) != formula_counts(CalcMolFormula(rd)):
         stats["formula"] += 1; fails["formula"].append((smi, formula, CalcMolFormula(rd)))
     # RDKit subtracts one electron mass per unit of positive charge; we don't

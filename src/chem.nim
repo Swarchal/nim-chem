@@ -6,10 +6,10 @@
 ##   echo mol.molecularFormula   # C9H8O4
 ##   echo mol.toSmiles           # canonical SMILES
 
-import chem/[elements, mol, valence, rings, canon, descriptors]
+import chem/[elements, mol, valence, rings, aromaticity, canon, descriptors]
 import chem/smiles/[parser, writer]
 
-export elements, mol, valence, rings, canon, descriptors, parser, writer
+export elements, mol, valence, rings, aromaticity, canon, descriptors, parser, writer
 
 proc canonicalSmiles*(smiles: string): string =
   ## Convenience: parse a SMILES string and write it back canonically.

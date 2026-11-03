@@ -67,7 +67,7 @@ func validateValences*(m: Mol): seq[string] =
       result.add "atom " & $i & " (" & $a & ") has valence " & $total &
                  ", maximum allowed is " & $vals[^1]
 
-proc sanitize*(m: Mol) =
+proc checkValences*(m: Mol) =
   ## Raises `ValenceError` if any atom is over-valent.
   let errs = validateValences(m)
   if errs.len > 0:

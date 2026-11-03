@@ -5,7 +5,7 @@
 ## branches, ring closures (`0-9`, `%nn`) and `.` disconnections.
 
 import std/[strutils, tables]
-import ../[mol, elements, valence, rings]
+import ../[mol, elements, valence, rings, aromaticity]
 
 type
   RingOpen = object
@@ -179,7 +179,9 @@ proc resolveImplicitOrders(m: var Mol) =
 
 proc parseSmiles*(s: string; sanitize = true): Mol =
   ## Parses a SMILES string into a `Mol`. Raises `SmilesError` on syntax
-  ## errors and (when `sanitize` is true) `ValenceError` on over-valent atoms.
+  ## errors. With `sanitize` (default) the molecule is also kekulized,
+  ## valence-checked and has its aromaticity perceived (see
+  ## `aromaticity.sanitize`), raising `KekulizeError` or `ValenceError`.
   var p = Parser(s: s)
   var prev = -1
   var branchStack: seq[int]
@@ -276,5 +278,5 @@ proc parseSmiles*(s: string; sanitize = true): Mol =
   resolveImplicitOrders(p.m)
 
   p.fixChirality()
-  if sanitize: valence.sanitize(p.m)
+  if sanitize: aromaticity.sanitize(p.m)
   p.m
