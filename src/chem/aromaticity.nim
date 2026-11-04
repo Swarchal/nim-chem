@@ -234,7 +234,8 @@ proc connectedRingSubsets(adj: seq[seq[int]]; members: seq[int];
 
 proc setAromaticity*(m: var Mol) =
   ## Marks atoms and bonds of aromatic rings (Hückel 4n+2 over single SSSR
-  ## rings and fused combinations of up to `maxFusedRings` rings). The
+  ## rings and fused combinations of up to `maxFusedRings` rings; for a
+  ## combination, only its perimeter bonds become aromatic, as in RDKit). The
   ## molecule is kekulized first if it still has aromatic bonds; existing
   ## aromatic flags are replaced.
   kekulize(m)
@@ -253,28 +254,33 @@ proc setAromaticity*(m: var Mol) =
         fused[r2].add r1
 
   var aromaticRing = newSeq[bool](rings.len)
+  var aromaticBond = newSeq[bool](m.numBonds)
   let bondAtoms = m.bonds.mapIt((it.a, it.b))   # closures can't capture `var m`
-  proc check(subset: seq[int]): bool =
-    ## Hückel test. For fused combinations only perimeter atoms count:
-    ## those on a bond that belongs to just one ring of the combination
-    ## (so e.g. pyrene's two central atoms are excluded).
-    var atoms = initHashSet[int]()
-    for r in subset:
-      for a in rings[r]:
-        if electrons[a] < 0: return false
+  proc perimeter(subset: seq[int]): seq[int] =
+    ## Bonds that belong to just one ring of the combination.
     var bondUse = initCountTable[int]()
     for r in subset:
       for bi in ringBondList[r]: bondUse.inc bi
     for bi, uses in bondUse:
-      if uses == 1:
-        atoms.incl bondAtoms[bi][0]
-        atoms.incl bondAtoms[bi][1]
+      if uses == 1: result.add bi
+  proc check(subset: seq[int]): bool =
+    ## Hückel test. For fused combinations only perimeter atoms count
+    ## (so e.g. pyrene's two central atoms are excluded).
+    for r in subset:
+      for a in rings[r]:
+        if electrons[a] < 0: return false
+    var atoms = initHashSet[int]()
+    for bi in perimeter(subset):
+      atoms.incl bondAtoms[bi][0]
+      atoms.incl bondAtoms[bi][1]
     var total = 0
     for a in atoms: total += electrons[a]
     total mod 4 == 2
 
   for r in 0..<rings.len:
-    if check(@[r]): aromaticRing[r] = true
+    if check(@[r]):
+      aromaticRing[r] = true
+      for bi in ringBondList[r]: aromaticBond[bi] = true
   # fused systems: connected components of the `fused` graph
   var system = newSeqWith(rings.len, -1)
   for start in 0..<rings.len:
@@ -298,13 +304,15 @@ proc setAromaticity*(m: var Mol) =
                                        min(maxFusedRings, usable.len)):
       if subset.allIt(aromaticRing[it]): continue
       if check(subset):
+        # as in RDKit, only the perimeter bonds become aromatic: azulene's
+        # shared bond stays single (its rings aren't aromatic on their own)
         for r in subset: aromaticRing[r] = true
+        for bi in perimeter(subset): aromaticBond[bi] = true
 
   var aromAtoms: seq[int]
   for r, ring in rings:
     if aromaticRing[r]: aromAtoms.add ring
   for a in aromAtoms: freezeHydrogens(m, a)   # before bond orders change
   for a in aromAtoms: m.atoms[a].aromatic = true
-  for r in 0..<rings.len:
-    if aromaticRing[r]:
-      for bi in ringBondList[r]: m.bonds[bi].order = boAromatic
+  for bi in 0..<m.numBonds:
+    if aromaticBond[bi]: m.bonds[bi].order = boAromatic

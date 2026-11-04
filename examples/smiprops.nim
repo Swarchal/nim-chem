@@ -1,6 +1,7 @@
 ## Reads SMILES (one per line, first whitespace-separated field) from stdin
 ## and prints tab-separated: input, canonical SMILES, formula, MW, exact mass,
-## number of aromatic atoms, chiral atoms and stereo double bonds.
+## number of aromatic atoms, chiral atoms, stereo double bonds and aromatic
+## bonds.
 ## Unparseable lines are reported as "ERROR<tab>message".
 
 import std/[strutils, strformat, sequtils]
@@ -14,6 +15,7 @@ for line in stdin.lines:
     let nArom = m.atoms.countIt(it.aromatic)
     let nChiral = m.atoms.countIt(it.chiral != ctNone)
     let nStereoBonds = m.bonds.countIt(it.stereo != bsNone)
-    echo &"{smi[0]}\t{m.toSmiles}\t{m.molecularFormula}\t{m.molWeight:.4f}\t{m.exactMass:.5f}\t{nArom}\t{nChiral}\t{nStereoBonds}"
+    let nAromBonds = m.bonds.countIt(it.order == boAromatic)
+    echo &"{smi[0]}\t{m.toSmiles}\t{m.molecularFormula}\t{m.molWeight:.4f}\t{m.exactMass:.5f}\t{nArom}\t{nChiral}\t{nStereoBonds}\t{nAromBonds}"
   except ChemError as e:
     echo &"{smi[0]}\tERROR\t{e.msg}"

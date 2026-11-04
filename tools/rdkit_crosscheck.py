@@ -6,7 +6,8 @@ Usage: python tools/rdkit_crosscheck.py [smiles_file]
 Checks per molecule:
   * formula (element counts + charge) and exact mass agree with RDKit
   * our canonical SMILES describes the same structure (RDKit canonical of ours == of input)
-  * the number of aromatic atoms matches RDKit's default aromaticity model
+  * the numbers of aromatic atoms and bonds match RDKit's default
+    aromaticity model
   * our canonical SMILES is invariant to RDKit-randomised input SMILES, in
     both aromatic and Kekule form
 Then the same checks on a stereo set (RDKit-enumerated stereoisomers of the
@@ -40,7 +41,7 @@ def formula_counts(f):
 
 def run(smiles):
     """Run smiprops; rows of input, canonical, formula, MW, exact mass,
-    #aromatic, #chiral atoms, #stereo double bonds."""
+    #aromatic atoms, #chiral atoms, #stereo double bonds, #aromatic bonds."""
     out = subprocess.run([exe], input="\n".join(smiles), capture_output=True, text=True, check=True).stdout
     return [l.split("\t") for l in out.splitlines()]
 
@@ -103,7 +104,7 @@ def check(label, mols):
         if row[1] == "ERROR":
             stats["parse_err"] += 1; fails["parse_err"].append((smi, row[2])); continue
         can, formula, mw, exact = row[1], row[2], float(row[3]), float(row[4])
-        n_arom, n_chiral, n_sbonds = int(row[5]), int(row[6]), int(row[7])
+        n_arom, n_chiral, n_sbonds, n_arom_bonds = int(row[5]), int(row[6]), int(row[7]), int(row[8])
         if formula_counts(formula) != formula_counts(CalcMolFormula(rd)):
             stats["formula"] += 1; fails["formula"].append((smi, formula, CalcMolFormula(rd)))
         # RDKit subtracts one electron mass per unit of positive charge; we don't
@@ -111,7 +112,8 @@ def check(label, mols):
             stats["exact_mass"] += 1; fails["exact_mass"].append((smi, exact, CalcExactMolWt(rd)))
         if abs(mw - MolWt(rd)) > 2e-4 * mw:
             mw_diff += 1
-        if n_arom != sum(a.GetIsAromatic() for a in rd.GetAtoms()):
+        if (n_arom != sum(a.GetIsAromatic() for a in rd.GetAtoms()) or
+                n_arom_bonds != sum(b.GetIsAromatic() for b in rd.GetBonds())):
             stats["aromatic"] += 1; fails["aromatic"].append((smi, can, rd_can))
         if (n_chiral, n_sbonds) != rdkit_stereo_counts(rd):
             stats["stereo"] += 1

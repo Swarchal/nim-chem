@@ -10,6 +10,10 @@ echo m.toSmiles            # CC(=O)Oc1ccccc1C(=O)O   (canonical)
 echo m.molecularFormula    # C9H8O4
 echo m.molWeight           # 180.159
 echo canonicalSmiles("OCC") == canonicalSmiles("C(O)C")   # true
+
+let acid = parseSmarts("[CX3](=O)[OX2H1]")
+echo m.substructMatches(acid)                 # @[@[1, 0, 2]]  (C, =O, OH)
+echo m.hasSubstructMatch(parseSmiles("c1ccccc1OC(C)=O"))   # true
 ```
 
 ## Features (v0.1)
@@ -23,10 +27,21 @@ echo canonicalSmiles("OCC") == canonicalSmiles("C(O)C")   # true
 - **Aromaticity**: Kekulization (`kekulize`, via a blossom matching, so odd
   fused systems like azulene work) and perception (`setAromaticity`, Hückel
   4n+2 over SSSR rings and fused combinations, RDKit-compatible electron
-  counting). Parsing sanitizes by default, so `C1=CC=CC=C1` and `c1ccccc1`
-  give the same molecule and canonical SMILES; impossible aromatic input
-  raises `KekulizeError`.
-- **Rings**: SSSR (`sssr`), ring bonds/atoms, ring count.
+  counting; for fused systems that are only aromatic as a whole, such as
+  azulene, only the perimeter bonds become aromatic). Parsing sanitizes by
+  default, so `C1=CC=CC=C1` and `c1ccccc1` give the same molecule and
+  canonical SMILES; impossible aromatic input raises `KekulizeError`.
+- **Rings**: SSSR (`sssr`), symmetrized SSSR (`symmetrizedSssr`: every
+  ring that isn't a sum of smaller ones, so cubane has 6), ring
+  bonds/atoms, ring count.
+- **Substructure search**: SMARTS parsing (`parseSmarts`: atom primitives
+  `* a A # D H h R r v X x + - @ @@`, isotopes, element symbols, recursive
+  `$(...)`, the `! & , ;` operators, bond primitives `- = # $ : ~ @ / \`)
+  and backtracking subgraph matching (`substructMatches`,
+  `substructMatch`, `hasSubstructMatch`), with RDKit's semantics: matches
+  are uniquified by atom set by default, and `useChirality` also checks
+  tetrahedral and cis/trans stereo. A molecule can be used as the query
+  (`toQuery`), matching elements, aromaticity, charges and bond orders.
 - **Stereochemistry**: tetrahedral centres (`@`/`@@`, including sulfoxides,
   phosphines and bridgehead/aziridine N) and double-bond E/Z, stored as
   cis/trans on the double bond rather than as `/` `\` marks. Parsing removes
@@ -55,6 +70,9 @@ echo canonicalSmiles("OCC") == canonicalSmiles("C(O)C")   # true
 | `chem/canon` | canonical atom ranks, symmetry classes |
 | `chem/stereo` | stereo perception (`assignStereo`) |
 | `chem/sanitization` | `sanitize`: kekulize, valence check, aromaticity, stereo |
+| `chem/query` | `Query` (atom/bond expression graphs), `toQuery` |
+| `chem/smarts` | SMARTS parser |
+| `chem/substruct` | substructure matching |
 | `chem/smiles/parser`, `chem/smiles/writer` | SMILES I/O |
 | `chem/descriptors` | formula, masses, counts |
 
@@ -63,10 +81,11 @@ echo canonicalSmiles("OCC") == canonicalSmiles("C(O)C")   # true
 ```sh
 nimble test                          # unit tests
 python tools/rdkit_crosscheck.py     # compare against RDKit (needs rdkit)
+python tools/rdkit_smarts_check.py   # substructure search against RDKit
 ```
 
 On RDKit's bundled 5K NCI set (4,991 molecules RDKit can read, written in
-Kekulé form): all formulas, exact masses and aromatic atom counts agree,
+Kekulé form): all formulas, exact masses and aromatic atom and bond counts agree,
 every canonical SMILES round-trips to the same structure in RDKit, and
 canonical output is the same for randomised aromatic and Kekulé input
 SMILES. One molecule (a Mg chelate) is rejected by our valence check.
@@ -75,6 +94,16 @@ The script also checks ~4,500 stereoisomers that RDKit enumerates from
 the NCI molecules with potential stereo. Canonical output is the same for
 every randomised input; stereo counts and round trips match RDKit, except
 for 12 cage-aminal isomers (see limitations).
+
+The SMARTS check runs the 1,103 SMARTS patterns bundled with RDKit (Crippen
+atom types, fragment descriptors, R. Lewis' filters, WEHI PAINS) against
+the same 4,991 molecules: all parse, and of the 5.5 million
+(molecule, pattern) pairs, 4 give different matches, all from the
+molecule rather than the pattern: RDKit charge-separates perchloric acid
+when reading it, and treats ferrocene's bonds to Fe differently. Matching
+with `useChirality` agrees on 160,808 (stereoisomer, query) pairs apart
+from the 12 cage aminals. The whole SMARTS run takes about as long as
+RDKit's (roughly 4 s per 1,000 molecules for all 1,103 patterns).
 
 ## Known limitations
 
@@ -97,6 +126,18 @@ for 12 cage-aminal isomers (see limitations).
   the same when reading and writing, so SMILES round-trip with RDKit, but
   other toolkits that follow OpenSMILES literally may read those few cases
   differently. Sulfoxides and four-coordinate centres are unaffected.
+- **SMARTS scope**: no component-level grouping (`(C).(C)`), reaction
+  SMARTS, `@?` or non-tetrahedral chirality. `/` `\` marks only give
+  cis/trans to plain `=` query bonds, and `@`/`@@` is checked wherever it
+  appears in an atom expression. `R` and `r` use `symmetrizedSssr`, which
+  agrees with RDKit's ring counts on the NCI set; in a few cages RDKit's
+  ring set is smaller (pentaprismane: RDKit finds only the 4-rings).
+  Inside recursive SMARTS, a written H on the first atom (`[$([C@H](C)F)]`)
+  is read as it is elsewhere, first in the neighbour order; RDKit reads it
+  second there (but first outside `$()`), so such patterns give the
+  opposite stereo match to RDKit's.
+  `parseSmiles` keeps `[H]` atoms that RDKit would remove, so `D`, `X` and
+  `[#1]` can see H atoms where RDKit's would not.
 - **Canonical ties under stereo** are resolved by choosing, at each
   tie-break, the option with the smallest stereo labels; when several
   options tie, each is completed and the smallest full encoding wins. This

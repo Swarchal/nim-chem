@@ -19,6 +19,18 @@ suite "SSSR":
     check ringSizes("C1CCC2(CC1)CCCC2") == @[5, 6]              # spiro
     check ringSizes("C1CC1.C1CCC1") == @[3, 4]
 
+  test "symmetrized SSSR":
+    proc symmSizes(s: string): seq[int] =
+      for r in parseSmiles(s).symmetrizedSssr: result.add r.len
+      result.sort()
+    check symmSizes("CCO").len == 0
+    check symmSizes("c1ccc2ccccc2c1") == @[6, 6]
+    check symmSizes("C12C3C4C1C5C2C3C45") == @[4, 4, 4, 4, 4, 4]   # cubane
+    check symmSizes("C1CC2CCC1CC2") == @[6, 6, 6]
+    check symmSizes("C1C2CC3CC1CC(C2)C3") == @[6, 6, 6, 6]         # adamantane
+    check symmSizes("C1CC2CCC1C2") == @[5, 5]                      # norbornane
+    check symmSizes("C1CC1.C1CCC1") == @[3, 4]
+
   test "rings are in walking order":
     let m = parseSmiles("c1ccc2ccccc2c1")
     for ring in m.sssr:
@@ -97,6 +109,18 @@ suite "aromaticity perception":
     let m = parseSmiles("C1=CC=C(C=C1)C1=CC=CC=C1")
     check aromaticAtoms("C1=CC=C(C=C1)C1=CC=CC=C1") == 12
     check m.bonds[m.bondBetween(3, 6)].order == boSingle
+
+  test "fused systems aromatic only as a whole keep a single shared bond":
+    # azulene: the 10-electron perimeter is aromatic, the 5- and 7-rings
+    # are not, so (as in RDKit) the shared bond is not aromatic
+    let m = parseSmiles("c1ccc2cccc2cc1")
+    check aromaticAtoms("c1ccc2cccc2cc1") == 10
+    var nArom = 0
+    for bd in m.bonds:
+      if bd.order == boAromatic: inc nArom
+    check nArom == 10
+    check m.toSmiles == "c1ccc-2cccc2cc1"
+    check canonicalSmiles("C1=CC=C2C=CC=C2C=C1") == m.toSmiles
 
   test "hydrogens are preserved":
     let m = parseSmiles("C1=CC=CN1")

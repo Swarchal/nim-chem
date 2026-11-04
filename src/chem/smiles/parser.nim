@@ -4,15 +4,11 @@
 ## and `@TH1`/`@TH2`, H count, charge, atom map), bonds `- = # $ : / \`,
 ## branches, ring closures (`0-9`, `%nn`) and `.` disconnections.
 
-import std/[strutils, tables]
+import std/[strutils, tables, sequtils]
 import ../[mol, elements, valence, rings, sanitization]
-import ./chirality
+import ./[chirality, directions]
 
 type
-  Dir = enum
-    ## a SMILES '/' or '\' mark, as read in the direction it was written
-    dNone, dUp, dDown
-
   RingOpen = object
     atom: int
     order: BondOrder     ## boNone if unspecified
@@ -173,12 +169,6 @@ proc parseBondSymbol(c: char): (BondOrder, Dir) =
   of '\\': (boNone, dDown)
   else: (boNone, dNone)
 
-func flip(d: Dir): Dir =
-  case d
-  of dNone: dNone
-  of dUp: dDown
-  of dDown: dUp
-
 proc fixChirality(p: var Parser) =
   ## Converts chirality from SMILES neighbour order to the Mol convention
   ## ([implicit slot] & adjacency order).
@@ -204,33 +194,11 @@ proc resolveImplicitOrders(m: var Mol) =
 
 proc assignDoubleBondStereo(p: var Parser) =
   ## Converts '/' '\' marks around double bonds into cis/trans stereo.
-  ## Each mark is turned into an "outward" direction, read from the
-  ## double-bond atom towards its substituent; equal outward marks at the two
-  ## ends mean cis (F/C=C\F), different ones trans (F/C=C/F).
-  for bi in 0..<p.m.numBonds:
-    let bd = p.m.bonds[bi]
-    if bd.order != boDouble: continue
-    var refs: array[2, (int, Dir)]
-    var conflict = -1
-    for k, endAtom in [bd.a, bd.b]:
-      refs[k] = (-1, dNone)
-      for (nb, nbi) in p.m.adj[endAtom]:
-        if nbi == bi: continue
-        let d = p.marks[nbi]
-        if d == dNone: continue
-        let outward = if p.m.bonds[nbi].a == endAtom: d else: flip(d)
-        if refs[k][0] < 0:
-          refs[k] = (nb, outward)
-        elif outward == refs[k][1]:
-          conflict = nbi
-    if refs[0][0] >= 0 and refs[1][0] >= 0:
-      # Only a conflict if this double bond is marked at both ends: in
-      # O=C(/C=C/X)/C=C/Y the carbonyl C's marks belong to the C=C bonds.
-      if conflict >= 0:
-        p.fail("conflicting '/' '\\' marks on two substituents of the same " &
-               "double-bond atom", p.bondPos[conflict])
-      p.m.setDoubleBondStereo(bi, refs[0][0], refs[1][0],
-                              cis = refs[0][1] == refs[1][1])
+  for st in stereoFromMarks(p.m, p.m.bonds.mapIt(it.order == boDouble), p.marks):
+    if st.conflict >= 0:
+      p.fail("conflicting '/' '\\' marks on two substituents of the same " &
+             "double-bond atom", p.bondPos[st.conflict])
+    p.m.setDoubleBondStereo(st.bond, st.refs[0], st.refs[1], st.cis)
 
 proc parseSmiles*(s: string; sanitize = true): Mol =
   ## Parses a SMILES string into a `Mol`. Raises `SmilesError` on syntax
