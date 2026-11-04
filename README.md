@@ -14,6 +14,11 @@ echo canonicalSmiles("OCC") == canonicalSmiles("C(O)C")   # true
 let acid = parseSmarts("[CX3](=O)[OX2H1]")
 echo m.substructMatches(acid)                 # @[@[1, 0, 2]]  (C, =O, OH)
 echo m.hasSubstructMatch(parseSmiles("c1ccccc1OC(C)=O"))   # true
+
+for rec in readSdf("compounds.sdf"):
+  if rec.error.len == 0:
+    echo rec.name, " ", rec.mol.toSmiles, " ", rec.props.getOrDefault("IC50")
+writeFile("aspirin.mol", m.toMolBlock("aspirin"))
 ```
 
 ## Features (v0.1)
@@ -51,6 +56,15 @@ echo m.hasSubstructMatch(parseSmiles("c1ccccc1OC(C)=O"))   # true
   with stereo labels as invariants, so canonical SMILES is unique for
   stereoisomers too: meso compounds, ring cis/trans and equivalent `/` `\`
   spellings all give one string.
+- **Molfiles and SD files**: V2000 and V3000 reading (`parseMolBlock`)
+  and writing (`toMolBlock`; V3000 on request or above 999 atoms/bonds),
+  with charges, isotopes, atom maps, radicals and explicit valences.
+  Stereo is read from 3D coordinates, 2D wedge/hash bonds (and "either"
+  marks), or atom parities when there are no coordinates; coordinates are
+  kept on the molecule (`coords`) and written back, with wedges chosen for
+  each chiral atom in 2D. SD files are read record by record from a string,
+  stream or file (`sdfRecords`, `readSdf`), keeping names and data items;
+  unreadable records are reported rather than stopping the read.
 - **Valence model**: implicit hydrogens, charge-aware allowed valences,
   over-valence detection (`ValenceError`, disable with `sanitize = false`).
 - **Descriptors**: Hill formula, average MW, monoisotopic mass, atom/heavy
@@ -73,6 +87,8 @@ echo m.hasSubstructMatch(parseSmiles("c1ccccc1OC(C)=O"))   # true
 | `chem/query` | `Query` (atom/bond expression graphs), `toQuery` |
 | `chem/smarts` | SMARTS parser |
 | `chem/substruct` | substructure matching |
+| `chem/molfile`, `chem/sdf` | molfile and SD file I/O |
+| `chem/geometry` | stereo from coordinates, wedges and atom parities |
 | `chem/smiles/parser`, `chem/smiles/writer` | SMILES I/O |
 | `chem/descriptors` | formula, masses, counts |
 
@@ -82,6 +98,7 @@ echo m.hasSubstructMatch(parseSmiles("c1ccccc1OC(C)=O"))   # true
 nimble test                          # unit tests
 python tools/rdkit_crosscheck.py     # compare against RDKit (needs rdkit)
 python tools/rdkit_smarts_check.py   # substructure search against RDKit
+python tools/rdkit_molfile_check.py  # molfile / SD file I/O against RDKit
 ```
 
 On RDKit's bundled 5K NCI set (4,991 molecules RDKit can read, written in
@@ -105,6 +122,18 @@ with `useChirality` agrees on 160,808 (stereoisomer, query) pairs apart
 from the 12 cage aminals. The whole SMARTS run takes about as long as
 RDKit's (roughly 4 s per 1,000 molecules for all 1,103 patterns).
 
+The molfile check has RDKit write the NCI molecules and the stereoisomers
+as SD files (V2000 and V3000 with 2D coordinates, and V2000 with 3D
+coordinates for a sample of 563 embedded stereoisomers), with names and
+multi-line data items. Our reading agrees with RDKit's on every molecule
+except the two whose bonds we don't support (a ferrocene drawn with dative
+bonds, and the Mg chelate), the 12 cage aminals, 4 skewed cage drawings and
+one pseudoasymmetric phosphorus in 3D; names and data items all survive;
+and every file we rewrite reads back in RDKit as the same structure (apart
+from the cage aminals). SD files we write from SMILES read back in RDKit
+with the same constitution, and in our reader with the same stereo apart
+from double-bond E/Z.
+
 ## Known limitations
 
 - **Aromaticity model**: follows RDKit's default model on everything
@@ -126,6 +155,20 @@ RDKit's (roughly 4 s per 1,000 molecules for all 1,103 patterns).
   the same when reading and writing, so SMILES round-trip with RDKit, but
   other toolkits that follow OpenSMILES literally may read those few cases
   differently. Sulfoxides and four-coordinate centres are unaffected.
+- **Molfiles without coordinates**: there is no 2D layout yet, so a
+  molecule from SMILES is written with zero coordinates. Its tetrahedral
+  stereo goes into the atom parities, which this library (and e.g. Open
+  Babel) reads back but RDKit ignores; double-bond E/Z can't be written.
+  With coordinates (e.g. from a molfile) all stereo is written; if a 2D
+  drawing leaves no single bond free to wedge for some chiral atom,
+  writing raises `ChemError`. Query features (query atoms such as `A`/`Q`/`L`,
+  atom lists, query bond types such as "any") raise `MolfileError`;
+  dative bonds (type 9), S-groups and other V3000 collections are not read.
+  `toSdf` raises `ValueError` for data items SD files can't hold (a blank
+  or `$$$$` line in a value, `<`/`>` in a name).
+- **Stereo from 2D drawings** follows RDKit's reading on all but 4 of 3,302
+  RDKit-drawn stereoisomers, all bridged cages drawn with overlapping
+  bonds, where the plain bonds at a wedged centre lie on one side of it.
 - **SMARTS scope**: no component-level grouping (`(C).(C)`), reaction
   SMARTS, `@?` or non-tetrahedral chirality. `/` `\` marks only give
   cis/trans to plain `=` query bonds, and `@`/`@@` is checked wherever it

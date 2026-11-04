@@ -52,10 +52,15 @@ type
     stereo*: BondStereo      ## double bonds only
     stereoAtoms*: (int, int) ## reference neighbours of `a` and `b` for `stereo`
 
+  Point3* = tuple[x, y, z: float]
+
   Mol* = object
     atoms*: seq[Atom]
     bonds*: seq[Bond]
     adj*: seq[seq[(int, int)]]  ## per atom: (neighbor atom, bond index)
+    coords*: seq[Point3]
+      ## atom coordinates (2D with z = 0, or 3D), or empty if there are
+      ## none (e.g. from SMILES); otherwise one per atom
 
 func initAtom*(element: int; charge = 0; isotope = 0; explicitH = 0;
                noImplicit = false; aromatic = false; chiral = ctNone;
@@ -73,6 +78,7 @@ func addAtom*(m: var Mol; a: Atom): int {.discardable.} =
     raise newException(ChemError, "invalid atomic number: " & $a.element)
   m.atoms.add a
   m.adj.add newSeq[(int, int)]()
+  if m.coords.len > 0: m.coords.add (0.0, 0.0, 0.0)
   m.atoms.high
 
 func bondBetween*(m: Mol; a, b: int): int =
@@ -166,6 +172,8 @@ func subMol*(m: Mol; atoms: openArray[int]): Mol =
       raise newException(ChemError, "atom " & $oi & " listed twice")
     oldToNew[oi] = ni
     result.addAtom m.atoms[oi]
+  if m.coords.len > 0:
+    for oi in atoms: result.coords.add m.coords[oi]
   for bd in m.bonds:
     let (na, nb) = (oldToNew[bd.a], oldToNew[bd.b])
     if na < 0 or nb < 0: continue
