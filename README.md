@@ -27,7 +27,15 @@ echo canonicalSmiles("OCC") == canonicalSmiles("C(O)C")   # true
   give the same molecule and canonical SMILES; impossible aromatic input
   raises `KekulizeError`.
 - **Rings**: SSSR (`sssr`), ring bonds/atoms, ring count.
-- **Canonical ranking** by iterative partition refinement + tie-breaking.
+- **Stereochemistry**: tetrahedral centres (`@`/`@@`, including sulfoxides,
+  phosphines and bridgehead/aziridine N) and double-bond E/Z, stored as
+  cis/trans on the double bond rather than as `/` `\` marks. Parsing removes
+  stereo that isn't real (e.g. `CC[C@@](C)(O)CC`), keeping ring cis/trans
+  (1,4-disubstituted cyclohexanes) and pseudoasymmetric centres.
+- **Canonical ranking** by iterative partition refinement + tie-breaking,
+  with stereo labels as invariants, so canonical SMILES is unique for
+  stereoisomers too: meso compounds, ring cis/trans and equivalent `/` `\`
+  spellings all give one string.
 - **Valence model**: implicit hydrogens, charge-aware allowed valences,
   over-valence detection (`ValenceError`, disable with `sanitize = false`).
 - **Descriptors**: Hill formula, average MW, monoisotopic mass, atom/heavy
@@ -43,8 +51,10 @@ echo canonicalSmiles("OCC") == canonicalSmiles("C(O)C")   # true
 | `chem/elements` | periodic table: symbols, masses, default valences |
 | `chem/valence` | implicit H, valence validation |
 | `chem/rings` | SSSR, ring-bond detection, components, ring count |
-| `chem/aromaticity` | Kekulization, aromaticity perception, `sanitize` |
-| `chem/canon` | canonical atom ranks |
+| `chem/aromaticity` | Kekulization, aromaticity perception |
+| `chem/canon` | canonical atom ranks, symmetry classes |
+| `chem/stereo` | stereo perception (`assignStereo`) |
+| `chem/sanitization` | `sanitize`: kekulize, valence check, aromaticity, stereo |
 | `chem/smiles/parser`, `chem/smiles/writer` | SMILES I/O |
 | `chem/descriptors` | formula, masses, counts |
 
@@ -61,6 +71,11 @@ every canonical SMILES round-trips to the same structure in RDKit, and
 canonical output is the same for randomised aromatic and Kekulé input
 SMILES. One molecule (a Mg chelate) is rejected by our valence check.
 
+The script also checks ~4,500 stereoisomers that RDKit enumerates from
+the NCI molecules with potential stereo. Canonical output is the same for
+every randomised input; stereo counts and round trips match RDKit, except
+for 12 cage-aminal isomers (see limitations).
+
 ## Known limitations
 
 - **Aromaticity model**: follows RDKit's default model on everything
@@ -68,28 +83,26 @@ SMILES. One molecule (a Mg chelate) is rejected by our valence check.
   only considered up to 6 rings at a time, and neutral boron is never
   aromatic (as in RDKit). With `sanitize = false` no kekulization or
   perception happens, and aromatic flags are kept exactly as written.
-- **Canonical SMILES is not unique for some stereoisomers**: stereo tags are
-  carried through correctly but are not used in canonical ranking, and ties
-  between symmetric atoms are broken by input order. So the same molecule
-  can get more than one canonical string when stereo is involved:
-  - meso compounds, e.g. `C[C@H](O)[C@@H](C)O` can come out with the `@`
-    and `@@` swapped;
-  - cis/trans ring compounds, e.g. `C[C@@H]1CC[C@H](C)CC1`;
-  - meaningless tags on non-stereocentres, e.g. `CC[C@@](C)(O)CC`, can come
-    out as either `@` or `@@`.
-
-  Don't rely on canonical-string comparison to deduplicate stereoisomers.
-- **Double-bond `/` `\` marks are kept as written**, not converted to E/Z,
-  so marking different substituents of the same alkene (e.g. `F/C(Cl)=C/F`
-  vs `F\C(/Cl)=C/F`) can give different canonical SMILES. On a ring
-  closure each mark is read from its own atom, so consistent marks at the
-  two ends are opposite symbols (`F/C=C/1.F\1`); matching symbols
-  (`F/C=C/1.F/1`) are rejected as contradictory.
+- **Stereo scope**: tetrahedral centres and double-bond cis/trans only; no
+  allenes, atropisomers or `@SP`/`@TB`/`@OH`/`@AL` (these raise
+  `SmilesError`). Double bonds in rings smaller than 8 carry no stereo.
+- **Stereo choices that differ from RDKit**:
+  - cage aminals (hexamethylenetetramine-type) lose their N tags, since the
+    cage fixes every N (RDKit keeps them);
+  - contradictory `/` `\` marks on one double bond raise `SmilesError`
+    (RDKit warns and drops the stereo).
+- **RDKit compatibility quirk**: for three-coordinate centres with a lone
+  pair and only single bonds (amine N, phosphine P, sulfonium S+), RDKit
+  reads `@`/`@@` inverted once per ring-closure digit on the atom. We do
+  the same when reading and writing, so SMILES round-trip with RDKit, but
+  other toolkits that follow OpenSMILES literally may read those few cases
+  differently. Sulfoxides and four-coordinate centres are unaffected.
+- **Canonical ties under stereo** are resolved by choosing, at each
+  tie-break, the option with the smallest stereo labels. This is exact on
+  everything tested, but is a greedy rule rather than a full search.
 - **Canonicalisation is slow for very large molecules**: refinement is
   roughly quadratic on long chains (about 3 s for a 4,000-atom chain).
   Non-canonical output (`toSmiles(canonical = false)`) stays fast.
-- Only tetrahedral chirality (`@`, `@@`, `@TH1/2`); `@SP`, `@TB`, `@OH`
-  and `@AL` raise a `SmilesError`.
 - Average atomic weights are current IUPAC values; RDKit uses some older ones
   (e.g. S 32.067), so MWs can differ by ~0.01 per such atom.
 - Exact mass is not corrected for electron mass on charged species (RDKit's

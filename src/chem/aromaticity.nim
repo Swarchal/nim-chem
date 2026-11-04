@@ -4,8 +4,8 @@
 ## (a perfect matching found with Edmonds' blossom algorithm), and
 ## `setAromaticity` re-derives aromatic flags from a Kekulé structure using a
 ## Hückel 4n+2 rule over SSSR rings and fused ring combinations, with
-## RDKit-style electron counting. `sanitize` runs both plus valence checks,
-## so equivalent aromatic and Kekulé inputs end up identical.
+## RDKit-style electron counting. `sanitization.sanitize` runs both plus
+## valence checks so equivalent aromatic and Kekulé inputs end up identical.
 ##
 ## Hydrogen counts of atoms that are (or become) aromatic are frozen into
 ## `explicitH` (with `noImplicit = true`), so they no longer depend on the
@@ -244,10 +244,7 @@ proc setAromaticity*(m: var Mol) =
   var electrons = newSeq[int](m.numAtoms)
   for i in 0..<m.numAtoms: electrons[i] = piElectrons(m, i, inRing)
   # ring bonds, and fusion (shared bond) between rings
-  var ringBondList = newSeq[seq[int]](rings.len)
-  for r, ring in rings:
-    for k in 0..<ring.len:
-      ringBondList[r].add m.bondBetween(ring[k], ring[(k + 1) mod ring.len])
+  let ringBondList = rings.mapIt(ringBondIndices(m, it))
   var fused = newSeq[seq[int]](rings.len)
   for r1 in 0..<rings.len:
     for r2 in r1+1..<rings.len:
@@ -311,10 +308,3 @@ proc setAromaticity*(m: var Mol) =
   for r in 0..<rings.len:
     if aromaticRing[r]:
       for bi in ringBondList[r]: m.bonds[bi].order = boAromatic
-
-proc sanitize*(m: var Mol) =
-  ## Kekulizes, checks valences on the Kekulé structure, then perceives
-  ## aromaticity. Raises `KekulizeError` or `ValenceError`.
-  kekulize(m)
-  checkValences(m)
-  setAromaticity(m)

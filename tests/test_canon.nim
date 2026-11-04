@@ -1,5 +1,6 @@
-import std/[unittest, random, sequtils]
+import std/[unittest, random]
 import chem
+import ./helpers
 
 const corpus = [
   "CCO", "CC(=O)O", "CC(=O)Oc1ccccc1C(=O)O", "Cn1cnc2c1c(=O)n(C)c(=O)n2C",
@@ -17,11 +18,6 @@ const corpus = [
   "C[S@](=O)c1ccccc1", "CC[C@@](C)(O)CCC", "OC[C@H]1OC(O)[C@H](O)[C@@H](O)[C@@H]1O",
   "[Fe+2].[Cl-].[Cl-]", "C1CCCCCCCCCC1",
 ]
-
-proc shuffled(m: Mol; r: var Rand): Mol =
-  var order = toSeq(0..<m.numAtoms)
-  r.shuffle(order)
-  m.renumberAtoms(order)
 
 suite "canonical SMILES":
   test "alternative spellings agree":

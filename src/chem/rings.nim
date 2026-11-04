@@ -6,8 +6,10 @@
 import std/[algorithm, sequtils]
 import ./mol
 
-func connectedComponents*(m: Mol): seq[int] =
+func connectedComponents*(m: Mol; bondMask: seq[bool] = @[]): seq[int] =
   ## Component id for every atom (ids numbered 0.. in order of first atom).
+  ## With a non-empty `bondMask`, only bonds marked `true` connect atoms
+  ## (e.g. `ringBonds(m)` gives ring systems).
   result = newSeqWith(m.numAtoms, -1)
   var nextId = 0
   var stack: seq[int]
@@ -17,8 +19,8 @@ func connectedComponents*(m: Mol): seq[int] =
     stack.add start
     while stack.len > 0:
       let a = stack.pop
-      for nb in m.neighbors(a):
-        if result[nb] < 0:
+      for (nb, bi) in m.adj[a]:
+        if result[nb] < 0 and (bondMask.len == 0 or bondMask[bi]):
           result[nb] = nextId
           stack.add nb
     inc nextId
@@ -75,6 +77,11 @@ func numRings*(m: Mol): int =
   ## Number of rings in the smallest set of smallest rings, computed as the
   ## cyclomatic number E - V + C.
   m.numBonds - m.numAtoms + m.numComponents
+
+func ringBondIndices*(m: Mol; ring: seq[int]): seq[int] =
+  ## Bond indices of a ring given as atoms in ring order (as from `sssr`).
+  for k in 0..<ring.len:
+    result.add m.bondBetween(ring[k], ring[(k + 1) mod ring.len])
 
 # ---------------------------------------------------------------------------
 # Smallest set of smallest rings (SSSR)

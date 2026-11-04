@@ -75,6 +75,9 @@ proc checkValences*(m: Mol) =
 
 func chiralReference*(m: Mol; i: int): seq[int] =
   ## Neighbour order that atom `i`'s chirality tag refers to: -1 (the
-  ## hydrogen count) first if the atom has any H, then `adj` order.
+  ## hydrogen count) first if the atom has any H, then `adj` order. For a
+  ## three-coordinate centre (sulfoxide, phosphine) the lone pair has a
+  ## fixed position and is not listed, matching RDKit: C[S@](=O)c1ccccc1 is
+  ## the same as [S@](C)(=O)c1ccccc1.
   if totalHCount(m, i) > 0: result.add -1
   for nb in m.neighbors(i): result.add nb

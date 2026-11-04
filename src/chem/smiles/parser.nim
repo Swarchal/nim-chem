@@ -5,13 +5,18 @@
 ## branches, ring closures (`0-9`, `%nn`) and `.` disconnections.
 
 import std/[strutils, tables]
-import ../[mol, elements, valence, rings, aromaticity]
+import ../[mol, elements, valence, rings, sanitization]
+import ./chirality
 
 type
+  Dir = enum
+    ## a SMILES '/' or '\' mark, as read in the direction it was written
+    dNone, dUp, dDown
+
   RingOpen = object
     atom: int
     order: BondOrder     ## boNone if unspecified
-    stereo: BondStereo
+    dir: Dir
     slot: int            ## position in nbrOrder[atom] reserved for the partner
 
   Parser = object
@@ -19,7 +24,11 @@ type
     i: int
     m: Mol
     nbrOrder: seq[seq[int]]       ## neighbours in SMILES order; -1 = H
+    ringDigits: seq[int]          ## ring-closure digits written on each atom
     openRings: Table[int, RingOpen]
+    marks: seq[Dir]               ## per bond, as written from `bond.a`
+    bondPos: seq[int]             ## per bond: input position (for errors)
+    atomPos: seq[int]             ## per atom: input position (for errors)
 
 proc fail(p: Parser; msg: string; pos = -1) {.noreturn.} =
   let at = if pos >= 0: pos else: p.i
@@ -41,18 +50,23 @@ proc readInt(p: var Parser): int =
     result = result * 10 + (ord(p.peek) - ord('0'))
     inc p.i
 
-proc addAtomNode(p: var Parser; a: Atom): int =
+proc addAtomNode(p: var Parser; a: Atom; pos: int): int =
   result = p.m.addAtom(a)
+  p.atomPos.add pos
   p.nbrOrder.add newSeq[int]()
+  p.ringDigits.add 0
 
-proc connect(p: var Parser; a, b: int; order: BondOrder; stereo: BondStereo;
-             pos: int) =
-  ## Adds bond a->b. `order` == boNone means "unspecified"; it is resolved
-  ## once the whole string has been read (see `resolveImplicitOrders`).
+proc connect(p: var Parser; a, b: int; order: BondOrder; dir: Dir; pos: int) =
+  ## Adds bond a->b, written from `a`. `order` == boNone means "unspecified";
+  ## it is resolved once the whole string has been read (see
+  ## `resolveImplicitOrders`). A '/' '\' mark is kept for
+  ## `assignDoubleBondStereo`.
   try:
-    p.m.addBond(a, b, order, stereo)
+    p.m.addBond(a, b, order)
   except ChemError as e:
     p.fail(e.msg, pos)
+  p.marks.add dir
+  p.bondPos.add pos
 
 proc parseOrganicAtom(p: var Parser): Atom =
   let c = p.peek
@@ -146,26 +160,37 @@ proc parseBracketAtom(p: var Parser): Atom =
     p.fail("unterminated or malformed bracket atom", start)
   inc p.i
 
-proc parseBondSymbol(c: char): (BondOrder, BondStereo) =
+proc parseBondSymbol(c: char): (BondOrder, Dir) =
   case c
-  of '-': (boSingle, bsNone)
-  of '=': (boDouble, bsNone)
-  of '#': (boTriple, bsNone)
-  of '$': (boQuadruple, bsNone)
-  of ':': (boAromatic, bsNone)
-  of '/': (boSingle, bsUp)
-  of '\\': (boSingle, bsDown)
-  else: (boNone, bsNone)
+  of '-': (boSingle, dNone)
+  of '=': (boDouble, dNone)
+  of '#': (boTriple, dNone)
+  of '$': (boQuadruple, dNone)
+  of ':': (boAromatic, dNone)
+  # a direction mark leaves the order to be resolved like an unwritten bond:
+  # single, or aromatic between aromatic ring atoms (as RDKit reads c1/ss...)
+  of '/': (boNone, dUp)
+  of '\\': (boNone, dDown)
+  else: (boNone, dNone)
+
+func flip(d: Dir): Dir =
+  case d
+  of dNone: dNone
+  of dUp: dDown
+  of dDown: dUp
 
 proc fixChirality(p: var Parser) =
   ## Converts chirality from SMILES neighbour order to the Mol convention
-  ## ([H] & adjacency order).
+  ## ([implicit slot] & adjacency order).
   for i in 0..<p.m.numAtoms:
     if p.m.atoms[i].chiral == ctNone: continue
     let reference = chiralReference(p.m, i)
-    assert reference.len == p.nbrOrder[i].len
-    if permutationParity(p.nbrOrder[i], reference) == 1:
-      p.m.atoms[i].chiral = flip(p.m.atoms[i].chiral)
+    if reference.len != p.nbrOrder[i].len:
+      p.fail("chirality on atom " & $i & " has the wrong number of neighbours",
+             p.atomPos[i])
+    p.m.atoms[i].chiral = reorderChirality(p.m, i, p.m.atoms[i].chiral,
+                                           p.nbrOrder[i], reference,
+                                           p.ringDigits[i])
 
 proc resolveImplicitOrders(m: var Mol) =
   ## An unwritten bond is aromatic if it joins two aromatic atoms within a
@@ -177,21 +202,51 @@ proc resolveImplicitOrders(m: var Mol) =
         if inRing[bi] and m.atoms[bd.a].aromatic and m.atoms[bd.b].aromatic: boAromatic
         else: boSingle
 
+proc assignDoubleBondStereo(p: var Parser) =
+  ## Converts '/' '\' marks around double bonds into cis/trans stereo.
+  ## Each mark is turned into an "outward" direction, read from the
+  ## double-bond atom towards its substituent; equal outward marks at the two
+  ## ends mean cis (F/C=C\F), different ones trans (F/C=C/F).
+  for bi in 0..<p.m.numBonds:
+    let bd = p.m.bonds[bi]
+    if bd.order != boDouble: continue
+    var refs: array[2, (int, Dir)]
+    var conflict = -1
+    for k, endAtom in [bd.a, bd.b]:
+      refs[k] = (-1, dNone)
+      for (nb, nbi) in p.m.adj[endAtom]:
+        if nbi == bi: continue
+        let d = p.marks[nbi]
+        if d == dNone: continue
+        let outward = if p.m.bonds[nbi].a == endAtom: d else: flip(d)
+        if refs[k][0] < 0:
+          refs[k] = (nb, outward)
+        elif outward == refs[k][1]:
+          conflict = nbi
+    if refs[0][0] >= 0 and refs[1][0] >= 0:
+      # Only a conflict if this double bond is marked at both ends: in
+      # O=C(/C=C/X)/C=C/Y the carbonyl C's marks belong to the C=C bonds.
+      if conflict >= 0:
+        p.fail("conflicting '/' '\\' marks on two substituents of the same " &
+               "double-bond atom", p.bondPos[conflict])
+      p.m.setDoubleBondStereo(bi, refs[0][0], refs[1][0],
+                              cis = refs[0][1] == refs[1][1])
+
 proc parseSmiles*(s: string; sanitize = true): Mol =
   ## Parses a SMILES string into a `Mol`. Raises `SmilesError` on syntax
   ## errors. With `sanitize` (default) the molecule is also kekulized,
   ## valence-checked and has its aromaticity perceived (see
-  ## `aromaticity.sanitize`), raising `KekulizeError` or `ValenceError`.
+  ## `sanitization.sanitize`), raising `KekulizeError` or `ValenceError`.
   var p = Parser(s: s)
   var prev = -1
   var branchStack: seq[int]
   var pendingOrder = boNone
-  var pendingStereo = bsNone
+  var pendingDir = dNone
   var pendingPos = -1
 
   template clearPending() =
     pendingOrder = boNone
-    pendingStereo = bsNone
+    pendingDir = dNone
     pendingPos = -1
 
   while p.i < s.len:
@@ -213,7 +268,7 @@ proc parseSmiles*(s: string; sanitize = true): Mol =
       inc p.i
     of '-', '=', '#', '$', ':', '/', '\\':
       if pendingPos >= 0: p.fail("two consecutive bond symbols")
-      (pendingOrder, pendingStereo) = parseBondSymbol(c)
+      (pendingOrder, pendingDir) = parseBondSymbol(c)
       pendingPos = p.i
       inc p.i
     of '0'..'9', '%':
@@ -229,6 +284,7 @@ proc parseSmiles*(s: string; sanitize = true): Mol =
       else:
         num = ord(c) - ord('0')
         inc p.i
+      inc p.ringDigits[prev]
       var r: RingOpen
       if p.openRings.pop(num, r):
         if r.atom == prev: p.fail("ring closure to the same atom", pos)
@@ -239,28 +295,29 @@ proc parseSmiles*(s: string; sanitize = true): Mol =
           order = pendingOrder
         # Each mark reads from its own atom, so consistent marks at the two
         # ends of a ring bond are opposite symbols (e.g. C/1 ... C\1).
-        if r.stereo != bsNone and pendingStereo != bsNone and r.stereo == pendingStereo:
+        if r.dir != dNone and pendingDir != dNone and r.dir == pendingDir:
           p.fail("conflicting ring closure bond directions", pos)
         # store the bond in the direction its / or \ mark was written
-        if r.stereo != bsNone or pendingStereo == bsNone:
-          p.connect(r.atom, prev, order, r.stereo, pos)
+        if r.dir != dNone or pendingDir == dNone:
+          p.connect(r.atom, prev, order, r.dir, pos)
         else:
-          p.connect(prev, r.atom, order, pendingStereo, pos)
+          p.connect(prev, r.atom, order, pendingDir, pos)
         p.nbrOrder[r.atom][r.slot] = prev
         p.nbrOrder[prev].add r.atom
       else:
         p.openRings[num] = RingOpen(atom: prev, order: pendingOrder,
-                                    stereo: pendingStereo,
+                                    dir: pendingDir,
                                     slot: p.nbrOrder[prev].len)
         p.nbrOrder[prev].add -2   # placeholder until the ring closes
       clearPending()
     else:
+      let atomStart = p.i
       let a =
         if c == '[': p.parseBracketAtom()
         else: p.parseOrganicAtom()
-      let idx = p.addAtomNode(a)
+      let idx = p.addAtomNode(a, atomStart)
       if prev >= 0:
-        p.connect(prev, idx, pendingOrder, pendingStereo, pendingPos)
+        p.connect(prev, idx, pendingOrder, pendingDir, pendingPos)
         p.nbrOrder[prev].add idx
         p.nbrOrder[idx].add prev
       elif pendingPos >= 0:
@@ -276,7 +333,8 @@ proc parseSmiles*(s: string; sanitize = true): Mol =
     p.fail("unclosed ring bond " & $num)
 
   resolveImplicitOrders(p.m)
+  p.assignDoubleBondStereo()
 
   p.fixChirality()
-  if sanitize: aromaticity.sanitize(p.m)
+  if sanitize: sanitization.sanitize(p.m)
   p.m
