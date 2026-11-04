@@ -10,11 +10,11 @@ type SdfRecord* = object
   props*: OrderedTable[string, string]   ## data items, in file order
   error*: string                         ## why `mol` couldn't be read ("" if it was)
 
-proc parseRecord(lines: seq[string]; sanitize: bool): SdfRecord =
+proc parseRecord(lines: seq[string]; sanitize, removeHs: bool): SdfRecord =
   if lines.len > 0: result.name = lines[0].strip
   var k = 0   # where the data items start
   try:
-    (result.mol, k) = readMolLines(lines, 0, sanitize)
+    (result.mol, k) = readMolLines(lines, 0, sanitize, removeHs)
   except ChemError as e:
     result.error = e.msg
     while k < lines.len and not lines[k].startsWith(">"): inc k
@@ -33,34 +33,34 @@ proc parseRecord(lines: seq[string]; sanitize: bool): SdfRecord =
       inc k
     result.props[s[open + 1 ..< close]] = value
 
-template collectRecords(lineSource, sanitize: untyped) =
+template collectRecords(lineSource, sanitize, removeHs: untyped) =
   ## Yields a record for each `$$$$`-terminated group of lines.
   var lines: seq[string]
   for raw in lineSource:
     var line = raw
     if line.endsWith('\r'): line.setLen line.high
     if line.startsWith("$$$$"):
-      yield parseRecord(lines, sanitize)
+      yield parseRecord(lines, sanitize, removeHs)
       lines.setLen 0
     else:
       lines.add line
   if lines.anyIt(it.strip.len > 0):
-    yield parseRecord(lines, sanitize)
+    yield parseRecord(lines, sanitize, removeHs)
 
-iterator sdfRecords*(s: Stream; sanitize = true): SdfRecord =
+iterator sdfRecords*(s: Stream; sanitize = true; removeHs = true): SdfRecord =
   ## Records of an SD file, read one at a time. A record whose molecule
   ## can't be read is still yielded, with `error` set (and its name and
-  ## data items).
-  collectRecords(s.lines, sanitize)
+  ## data items). `sanitize` and `removeHs` are as for `parseMolBlock`.
+  collectRecords(s.lines, sanitize, removeHs)
 
-iterator sdfRecords*(text: string; sanitize = true): SdfRecord =
-  collectRecords(text.splitLines, sanitize)
+iterator sdfRecords*(text: string; sanitize = true; removeHs = true): SdfRecord =
+  collectRecords(text.splitLines, sanitize, removeHs)
 
-iterator readSdf*(path: string; sanitize = true): SdfRecord =
+iterator readSdf*(path: string; sanitize = true; removeHs = true): SdfRecord =
   ## Records of the SD file at `path`.
   let s = openFileStream(path)
   defer: s.close()
-  for r in sdfRecords(s, sanitize): yield r
+  for r in sdfRecords(s, sanitize, removeHs): yield r
 
 proc toSdf*(m: Mol; name = ""; props: openArray[(string, string)] = [];
             v3000 = false): string =

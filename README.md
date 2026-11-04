@@ -65,6 +65,14 @@ writeFile("aspirin.mol", m.toMolBlock("aspirin"))
   each chiral atom in 2D. SD files are read record by record from a string,
   stream or file (`sdfRecords`, `readSdf`), keeping names and data items;
   unreadable records are reported rather than stopping the read.
+- **Explicit hydrogens**: the SMILES and molfile readers turn plain
+  hydrogen atoms into H counts, as RDKit does (`removeHs = false` keeps
+  them), so `[H]C` reads as `C`. Hydrogens that carry information stay:
+  isotopes, charged or mapped H, H bonded to H, a dummy or several atoms,
+  and an H needed for double-bond cis/trans or for a three-coordinate
+  stereocentre. `removeHs` and `addHs` convert either way, keeping stereo;
+  with coordinates, `addHs` places the new atoms (in the plane for 2D,
+  roughly tetrahedral in 3D).
 - **Valence model**: implicit hydrogens, charge-aware allowed valences,
   over-valence detection (`ValenceError`, disable with `sanitize = false`).
 - **Descriptors**: Hill formula, average MW, monoisotopic mass, atom/heavy
@@ -88,7 +96,8 @@ writeFile("aspirin.mol", m.toMolBlock("aspirin"))
 | `chem/smarts` | SMARTS parser |
 | `chem/substruct` | substructure matching |
 | `chem/molfile`, `chem/sdf` | molfile and SD file I/O |
-| `chem/geometry` | stereo from coordinates, wedges and atom parities |
+| `chem/geometry` | stereo from coordinates, wedges and atom parities, H placement |
+| `chem/hydrogens` | `removeHs`, `addHs` |
 | `chem/smiles/parser`, `chem/smiles/writer` | SMILES I/O |
 | `chem/descriptors` | formula, masses, counts |
 
@@ -129,10 +138,12 @@ multi-line data items. Our reading agrees with RDKit's on every molecule
 except the two whose bonds we don't support (a ferrocene drawn with dative
 bonds, and the Mg chelate), the 12 cage aminals, 4 skewed cage drawings and
 one pseudoasymmetric phosphorus in 3D; names and data items all survive;
-and every file we rewrite reads back in RDKit as the same structure (apart
-from the cage aminals). SD files we write from SMILES read back in RDKit
-with the same constitution, and in our reader with the same stereo apart
-from double-bond E/Z.
+and every file we rewrite reads back in RDKit as the same structure as our
+reading, with or without hydrogens added. The 3D files are also read with
+all their H atoms, with the same results. SD files we write from SMILES
+read back in RDKit with the same constitution, and in our reader with the
+same stereo apart from double-bond E/Z. SMILES written after `addHs` read
+back in RDKit as the input (apart from the cage aminals).
 
 ## Known limitations
 
@@ -168,7 +179,14 @@ from double-bond E/Z.
   or `$$$$` line in a value, `<`/`>` in a name).
 - **Stereo from 2D drawings** follows RDKit's reading on all but 4 of 3,302
   RDKit-drawn stereoisomers, all bridged cages drawn with overlapping
-  bonds, where the plain bonds at a wedged centre lie on one side of it.
+  bonds, where the plain bonds at a wedged centre lie on one side of it:
+  we read the drawing as 3D geometry, RDKit by the order of the bonds
+  around the centre. When writing, wedges both readings agree on are
+  preferred, so other programs read our drawings as we do.
+- **Hydrogens kept where RDKit removes them**: a mapped H (RDKit drops the
+  map) and an H on a three-coordinate stereocentre such as `C[S@]([H])=O`
+  (RDKit drops the stereo). `addHs` positions are not optimised and can
+  clash with nearby atoms.
 - **SMARTS scope**: no component-level grouping (`(C).(C)`), reaction
   SMARTS, `@?` or non-tetrahedral chirality. `/` `\` marks only give
   cis/trans to plain `=` query bonds, and `@`/`@@` is checked wherever it
@@ -179,8 +197,6 @@ from double-bond E/Z.
   is read as it is elsewhere, first in the neighbour order; RDKit reads it
   second there (but first outside `$()`), so such patterns give the
   opposite stereo match to RDKit's.
-  `parseSmiles` keeps `[H]` atoms that RDKit would remove, so `D`, `X` and
-  `[#1]` can see H atoms where RDKit's would not.
 - **Canonical ties under stereo** are resolved by choosing, at each
   tie-break, the option with the smallest stereo labels; when several
   options tie, each is completed and the smallest full encoding wins. This

@@ -5,7 +5,7 @@
 ## branches, ring closures (`0-9`, `%nn`) and `.` disconnections.
 
 import std/[strutils, tables, sequtils]
-import ../[mol, elements, valence, rings, sanitization]
+import ../[mol, elements, valence, rings, sanitization, hydrogens]
 import ./[chirality, directions]
 
 type
@@ -200,11 +200,13 @@ proc assignDoubleBondStereo(p: var Parser) =
              "double-bond atom", p.bondPos[st.conflict])
     p.m.setDoubleBondStereo(st.bond, st.refs[0], st.refs[1], st.cis)
 
-proc parseSmiles*(s: string; sanitize = true): Mol =
+proc parseSmiles*(s: string; sanitize = true; removeHs = true): Mol =
   ## Parses a SMILES string into a `Mol`. Raises `SmilesError` on syntax
   ## errors. With `sanitize` (default) the molecule is also kekulized,
   ## valence-checked and has its aromaticity perceived (see
-  ## `sanitization.sanitize`), raising `KekulizeError` or `ValenceError`.
+  ## `sanitization.sanitize`), raising `KekulizeError` or `ValenceError`;
+  ## then, with `removeHs` (default), plain hydrogen atoms become H counts
+  ## (`hydrogens.removeHs`).
   var p = Parser(s: s)
   var prev = -1
   var branchStack: seq[int]
@@ -304,5 +306,8 @@ proc parseSmiles*(s: string; sanitize = true): Mol =
   p.assignDoubleBondStereo()
 
   p.fixChirality()
-  if sanitize: sanitization.sanitize(p.m)
+  if sanitize:
+    sanitization.sanitize(p.m)
+    if removeHs and p.m.atoms.anyIt(it.element == 1):
+      return hydrogens.removeHs(p.m)
   p.m

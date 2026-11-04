@@ -10,7 +10,7 @@
 ## Query features (atom lists, query bond types, S-groups) are not read.
 
 import std/[strutils, sequtils, tables, math, parseutils]
-import ./[mol, elements, valence, aromaticity, geometry, sanitization, stereo, canon]
+import ./[mol, elements, valence, aromaticity, geometry, sanitization, stereo, canon, hydrogens]
 
 type
   MolfileError* = object of ChemError
@@ -286,7 +286,7 @@ proc readV3000(lines: openArray[string]; first: int; ct: var Ctab): int =
 # ---------------------------------------------------------------------------
 # Building the molecule
 
-proc toMol(ct: Ctab; sanitize: bool): Mol =
+proc toMol(ct: Ctab; sanitize, removeHs: bool): Mol =
   var m: Mol
   for ra in ct.atoms: m.addAtom ra.atom
   for rb in ct.bonds:
@@ -313,12 +313,14 @@ proc toMol(ct: Ctab; sanitize: bool): Mol =
       m.atoms[i].chiral = chiralFromParity(m, i, ra.parity)
   # geometry gives every possible centre a tag: keep only real stereo,
   # even unsanitized
-  if sanitize: sanitization.sanitize(m)
-  else: assignStereo(m)
-  m
+  if not sanitize:
+    assignStereo(m)
+    return m
+  sanitization.sanitize(m)
+  if removeHs and m.atoms.anyIt(it.element == 1): hydrogens.removeHs(m) else: m
 
 proc readMolLines*(lines: openArray[string]; first = 0;
-                   sanitize = true): (Mol, int) =
+                   sanitize = true; removeHs = true): (Mol, int) =
   ## Reads the molfile starting at `lines[first]`; returns the molecule and
   ## the index of the line after `M  END`. See `parseMolBlock`.
   if lines.len - first < 4: fail("molfile too short", lines.len)
@@ -328,14 +330,15 @@ proc readMolLines*(lines: openArray[string]; first = 0;
     of "V3000": readV3000(lines, first + 3, ct)
     of "V2000", "": readV2000(lines, first + 3, ct)
     else: fail("unknown molfile version '" & version & "'", first + 4)
-  (toMol(ct, sanitize), next)
+  (toMol(ct, sanitize, removeHs), next)
 
-proc parseMolBlock*(s: string; sanitize = true): Mol =
+proc parseMolBlock*(s: string; sanitize = true; removeHs = true): Mol =
   ## Parses a molfile (V2000 or V3000). Raises `MolfileError`, and with
   ## `sanitize` (default) `KekulizeError` or `ValenceError` like
-  ## `parseSmiles`. The coordinates are kept in `coords` (empty if they
+  ## `parseSmiles`, which it also follows in removing plain hydrogen atoms
+  ## (`removeHs`). The coordinates are kept in `coords` (empty if they
   ## are all zero).
-  readMolLines(s.splitLines, 0, sanitize)[0]
+  readMolLines(s.splitLines, 0, sanitize, removeHs)[0]
 
 # ---------------------------------------------------------------------------
 # Writing

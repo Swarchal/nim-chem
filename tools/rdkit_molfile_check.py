@@ -7,14 +7,17 @@ Sets: the NCI molecules, plus the stereoisomers RDKit enumerates from those
 with potential stereo, each written by RDKit as
   * a V2000 SD file with 2D coordinates (RDKit's layout and wedges),
   * a V3000 SD file with 2D coordinates,
-  * a V2000 SD file with 3D coordinates (ETKDG, a sample of the stereo set).
+  * a V2000 SD file with 3D coordinates (ETKDG, a sample of the stereo set),
+    without and with hydrogen atoms.
 For each, our reading must give the same structure as RDKit's reading of the
 same file (compared as RDKit canonical isomeric SMILES of our SMILES output),
 and the name and data items must survive. Then our rewrite of the file
-(V2000 and V3000) must read back in RDKit as the same structure. Finally,
+(V2000 and V3000) must read back in RDKit as the same structure, also with
+hydrogens added (`--addhs`: checks their placement keeps the stereo). Finally,
 SD files we write from SMILES (no coordinates) must read back in RDKit as
 the same constitution, and in our reader as the same structure apart from
-double-bond E/Z (tetrahedral stereo travels in the atom parities).
+double-bond E/Z (tetrahedral stereo travels in the atom parities), and
+our SMILES with hydrogens added must read back in RDKit as the input.
 """
 import io, os, random, subprocess, sys
 from collections import Counter
@@ -74,7 +77,7 @@ def check_read(label, mols, v3000=False):
         if f[1] != f"mol{k}" or f[2:] != [f"index={k}", f"multi line=first\\nsecond {k}"]:
             stats["props"] += 1; examples.setdefault("props", (k, f[1:]))
     # rewrite with our writer, read back in RDKit
-    for flags in [(), ("--v3000",)]:
+    for flags in [(), ("--v3000",), ("--addhs",)]:
         back = rdkit_read(run("sdf2sdf", text, *flags))
         key = "rewrite" + "".join(flags)
         good = {r.GetProp("_Name"): Chem.MolToSmiles(r) for r in back if r is not None}
@@ -104,8 +107,9 @@ embedded = []
 for m in sample:
     mh = Chem.AddHs(m)
     if AllChem.EmbedMolecule(mh, randomSeed=7) == 0:
-        embedded.append(Chem.RemoveHs(mh))
-check_read(f"stereoisomers, V2000 3D ({len(embedded)} embedded)", embedded)
+        embedded.append(mh)
+check_read(f"stereoisomers, V2000 3D ({len(embedded)} embedded)", [Chem.RemoveHs(m) for m in embedded])
+check_read(f"stereoisomers, V2000 3D with H atoms", embedded)
 
 # writing from SMILES: no coordinates
 for label, ms in [("NCI", mols), ("stereoisomers", stereo)]:
@@ -132,3 +136,16 @@ for label, ms in [("NCI", mols), ("stereoisomers", stereo)]:
             stats["our_roundtrip"] += 1
             if stats["our_roundtrip"] <= 3: print("   ", s, o)
     print(f"== {label}, written from SMILES (0D): {dict(stats)}")
+
+# hydrogens added to molecules from SMILES
+for label, ms in [("NCI", mols), ("stereoisomers", stereo)]:
+    smis = [Chem.MolToSmiles(m) for m in ms]
+    rows = run("smi2smi", "\n".join(smis), "--addhs").splitlines()
+    stats = Counter(n=len(smis))
+    for s, row in zip(smis, rows):
+        if row.startswith("ERROR"):
+            stats["error"] += 1; continue
+        if canon(row) != canon(s):
+            stats["changed"] += 1
+            if stats["changed"] <= 3: print("   ", s, row)
+    print(f"== {label}, hydrogens added (SMILES): {dict(stats)}")

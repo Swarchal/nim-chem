@@ -22,6 +22,9 @@ func dot(a, b: Point3): float = a.x * b.x + a.y * b.y + a.z * b.z
 func cross(a, b: Point3): Point3 =
   (a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x)
 func norm(a: Point3): float = sqrt(dot(a, a))
+func unit(a: Point3): Point3 =
+  let l = norm(a)
+  if l == 0: a else: a * (1 / l)
 
 func is3D*(m: Mol): bool =
   ## Whether `m` has coordinates that are not all in the z = 0 plane.
@@ -55,13 +58,19 @@ func chiralFromPoints(c: Point3; pts: openArray[Point3]): ChiralTag =
   else: ctCW
 
 func tagFromPositions(m: Mol; i: int; slots: openArray[int];
-                      lift: openArray[float]): ChiralTag =
+                      lift: openArray[float]; angular = false): ChiralTag =
   ## Atom `i`'s tag from the coordinates, with neighbour `nb` raised by
   ## `lift[nb]` in z (for wedges); an implicit H or lone pair is placed
-  ## opposite the neighbours.
-  template pos(nb: int): Point3 =
-    (m.coords[nb].x, m.coords[nb].y, m.coords[nb].z + lift[nb])
+  ## opposite the neighbours. With `angular`, each neighbour is first moved
+  ## to unit distance from the centre, so only the directions of the
+  ## bonds count: for a 2D drawing this reads the tag from the order of the
+  ## bonds around the centre, as RDKit does. The two readings differ when
+  ## the centre lies outside the triangle of its plain-bonded neighbours
+  ## (squashed cage drawings).
   let c = m.coords[i]
+  template pos(nb: int): Point3 =
+    let p = if angular: c + unit(m.coords[nb] - c) else: m.coords[nb]
+    (p.x, p.y, p.z + lift[nb])
   var sum: Point3 = (0.0, 0.0, 0.0)
   for nb in m.neighbors(i):
     let d = pos(nb) - c
@@ -156,8 +165,8 @@ proc chooseWedges*(m: Mol): seq[(int, BondWedge)] =
   ## For 2D coordinates: per bond, the atom at the narrow end and a wedge
   ## or hash that gives each chiral atom its tag (`(-1, bwNone)` for plain
   ## bonds, and for every bond without 2D coordinates). Prefers bonds to
-  ## non-chiral, non-ring, low-degree neighbours; the atoms with the fewest
-  ## usable bonds choose first. Raises `ChemError` if a chiral atom can't
+  ## non-chiral, non-ring neighbours with few heavy-atom neighbours; the
+  ## atoms with the fewest usable bonds choose first. Raises `ChemError` if a chiral atom can't
   ## get a wedge (every single bond at it is needed by another chiral atom,
   ## or the drawing can't show its configuration).
   result = newSeqWith(m.numBonds, (-1, bwNone))
@@ -174,16 +183,23 @@ proc chooseWedges*(m: Mol): seq[(int, BondWedge)] =
     var ranked: seq[(int, int, int, int)]   # (chiral nb, ring, degree, bond)
     for (nb, bi) in m.adj[i]:
       if m.bonds[bi].order == boSingle:
-        ranked.add (ord(m.atoms[nb].chiral != ctNone), ord(inRing[bi]), m.degree(nb), bi)
+        # heavy-atom degree, so explicit H atoms don't change the choice
+        let heavy = toSeq(m.neighbors(nb)).countIt(m.atoms[it].element != 1)
+        ranked.add (ord(m.atoms[nb].chiral != ctNone), ord(inRing[bi]), heavy, bi)
     ranked.sort()
-    var usable: seq[(int, BondWedge)]
+    # bonds whose wedge reads the same by geometry and by bond order around
+    # the centre come first, so other programs read the drawing the same way
+    var usable, ambiguous: seq[(int, BondWedge)]
     for (_, _, _, bi) in ranked:
       let up = m.bonds[bi].otherAtom(i)
       lift[up] = bondLen
       let t = tagFromPositions(m, i, slots, lift)
+      let clear = t == tagFromPositions(m, i, slots, lift, angular = true)
       lift[up] = 0
-      if t != ctNone: usable.add (bi, if t == tag: bwWedge else: bwHash)
-    options.add (i, usable)
+      if t == ctNone: continue
+      let option = (bi, if t == tag: bwWedge else: bwHash)
+      if clear: usable.add option else: ambiguous.add option
+    options.add (i, usable & ambiguous)
   options.sort(proc (x, y: (int, seq[(int, BondWedge)])): int =
     cmp(x[1].len, y[1].len))
   var owner = newSeqWith(m.numBonds, -1)   # option index using each bond
@@ -216,3 +232,78 @@ proc chooseWedges*(m: Mol): seq[(int, BondWedge)] =
       raise newException(ChemError, "can't draw a wedge for chiral atom " &
                          $options[k][0] & " in these 2D coordinates")
     take(k, o)
+
+# ---------------------------------------------------------------------------
+# Placing hydrogens
+
+func perpendicular(a: Point3): Point3 =
+  ## Some unit vector perpendicular to `a`.
+  let t: Point3 = if abs(a.x) < 0.9: (1.0, 0.0, 0.0) else: (0.0, 1.0, 0.0)
+  unit(cross(a, t))
+
+func hydrogenDirections2D(us: seq[Point3]; n: int): seq[Point3] =
+  ## `n` directions in the z = 0 plane, spread over the widest angular gap
+  ## between the existing bond directions `us`.
+  var angles = us.mapIt(arctan2(it.y, it.x))
+  angles.sort()
+  var start = 0.0
+  var gap = 2 * PI
+  for k in 0..<angles.len:
+    let next = if k + 1 < angles.len: angles[k + 1] else: angles[0] + 2 * PI
+    if k == 0 or next - angles[k] > gap:
+      (start, gap) = (angles[k], next - angles[k])
+  for k in 1..n:
+    let a = start + gap * k.float / (n + 1).float
+    result.add (cos(a), sin(a), 0.0)
+
+func hydrogenDirections3D(us: seq[Point3]; n: int): seq[Point3] =
+  ## `n` directions roughly tetrahedral to each other and to the existing
+  ## bond directions `us`.
+  const tetra: array[4, Point3] = [(1.0, 1.0, 1.0), (1.0, -1.0, -1.0),
+                                   (-1.0, 1.0, -1.0), (-1.0, -1.0, 1.0)]
+  if us.len == 0:
+    for k in 0..<n: result.add unit(tetra[k mod 4])
+    return
+  var sum: Point3 = (0.0, 0.0, 0.0)
+  for u in us: sum = sum + u
+  # pointing away from the existing bonds; if they cancel out (linear or
+  # symmetric), perpendicular to them
+  let axis = if norm(sum) > 1e-3: unit(sum * -1.0)
+             elif us.len >= 2 and norm(cross(us[0], us[1])) > 1e-3: unit(cross(us[0], us[1]))
+             else: perpendicular(us[0])
+  if n == 1: return @[axis]
+  # a cone around the axis: tetrahedral angles for CH2 and CH3
+  let theta = if n == 2: degToRad(54.75) else: degToRad(70.53)
+  let p = block:
+    let side = if us.len >= 2: cross(us[0], us[1]) else: us[0] - axis * dot(us[0], axis)
+    if norm(side) > 1e-3: unit(side) else: perpendicular(axis)
+  let q = cross(axis, p)
+  for k in 0..<n:
+    let phi = 2 * PI * k.float / n.float
+    result.add axis * cos(theta) + (p * cos(phi) + q * sin(phi)) * sin(theta)
+
+proc placeHydrogens*(m: var Mol; centre: int; hs: openArray[int]) =
+  ## Sets coordinates for the hydrogen atoms `hs` bonded to `centre`, away
+  ## from its other neighbours: in the plane for 2D coordinates, roughly
+  ## tetrahedral for 3D. An implicit H's assumed position (opposite the
+  ## other neighbours) is kept for a single H, so stereo read from the
+  ## coordinates is unchanged. Approximate: there is no geometry
+  ## optimisation, so new H atoms may clash with distant atoms.
+  if m.coords.len == 0 or hs.len == 0: return
+  let threeD = m.is3D
+  var heavyBonds: seq[float]
+  for bd in m.bonds:
+    if m.atoms[bd.a].element != 1 and m.atoms[bd.b].element != 1:
+      heavyBonds.add norm(m.coords[bd.a] - m.coords[bd.b])
+  let mean = if heavyBonds.len > 0: heavyBonds.sum / heavyBonds.len.float else: 0.0
+  let length = if threeD: (if mean > 0: 0.7 * mean else: 1.09)
+               elif mean > 0: mean else: 1.0
+  let c = m.coords[centre]
+  var us: seq[Point3]
+  for nb in m.neighbors(centre):
+    if nb notin hs and norm(m.coords[nb] - c) > 0: us.add unit(m.coords[nb] - c)
+  let dirs = if threeD: hydrogenDirections3D(us, hs.len)
+             elif hs.len == 1 and us.len > 0 and
+                  norm(us.foldl(a + b)) > 1e-3: @[unit(us.foldl(a + b) * -1.0)]
+             else: hydrogenDirections2D(us, hs.len)
+  for k, h in hs: m.coords[h] = c + dirs[k] * length

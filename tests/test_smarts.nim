@@ -74,10 +74,12 @@ suite "atom primitives":
     check count("C[nH]1cccc1", "[nH]") == 0   # not a valid pyrrole spelling
     check count("c1cc[nH]c1", "[nH]") == 1
     check count("c1cc[nH]c1", "[h]") == 5      # any H not stored as an atom
-    check count("[H]C([H])C", "[h1]") == 1
+    # hydrogen atoms are removed when reading, unless asked not to
+    check count("[H]C([H])C", "[#1]") == 0
     check count("[H]C([H])C", "[H3]") == 2
-    check count("[H]C([H])C", "[#1]") == 2
-    check count("[H]C([H])C", "[H]") == 2
+    let withHs = parseSmiles("[H]C([H])C", removeHs = false)
+    for (smarts, n) in [("[h1]", 1), ("[H3]", 2), ("[#1]", 2), ("[H]", 2)]:
+      check withHs.substructMatches(parseSmarts(smarts)).len == n
     check count("[2H]C", "[2H]") == 1
     check count("[2H]C", "[2#1]") == 1
     check count("[H+].[Cl-]", "[H+]") == 1
