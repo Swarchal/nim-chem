@@ -98,8 +98,11 @@ for 12 cage-aminal isomers (see limitations).
   other toolkits that follow OpenSMILES literally may read those few cases
   differently. Sulfoxides and four-coordinate centres are unaffected.
 - **Canonical ties under stereo** are resolved by choosing, at each
-  tie-break, the option with the smallest stereo labels. This is exact on
-  everything tested, but is a greedy rule rather than a full search.
+  tie-break, the option with the smallest stereo labels; when several
+  options tie, each is completed and the smallest full encoding wins. This
+  search is capped at 5,000 tie-break trials per molecule, after which the
+  first option is taken, so a pathologically symmetric molecule carrying
+  many unresolved stereo centres could still depend on atom order.
 - **Canonicalisation is slow for very large molecules**: refinement is
   roughly quadratic on long chains (about 3 s for a 4,000-atom chain).
   Non-canonical output (`toSmiles(canonical = false)`) stays fast.

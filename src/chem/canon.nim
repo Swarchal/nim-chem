@@ -12,6 +12,9 @@
 import std/[algorithm, sequtils]
 import ./[mol, valence, rings]
 
+const maxSearchRefinements = 5000
+  ## cap on tie-break candidates tried while searching stereo tie-breaks
+
 func cmpSeq(a, b: seq[int]): int =
   for i in 0..<min(a.len, b.len):
     if a[i] != b[i]: return cmp(a[i], b[i])
@@ -152,17 +155,24 @@ proc canonicalRanks*(m: Mol; useStereo = true): seq[int] =
   let stereo = useStereo and hasStereo(m)
   let stereoBonds = if stereo: stereoBondList(m) else: @[]
   refineWithStereo(m, result, nClasses, stereo, stereoBonds)
-  # Break ties: split the lowest tied class by promoting one of its atoms
-  # (moving the rest, and every higher class, up one rank).
-  var searchStereo = stereo
+  if nClasses == n: return
 
   proc breakTie(ranks: seq[int]; nClasses, tied, chosen: int): (seq[int], int) =
+    ## Splits class `tied` by promoting atom `chosen` (the rest, and every
+    ## higher class, move up one rank), then refines.
     var r = ranks
     for i in 0..<n:
       if r[i] > tied or (r[i] == tied and i != chosen): inc r[i]
     var nc = nClasses + 1
     refineWithStereo(m, r, nc, stereo, stereoBonds)
     (r, nc)
+
+  proc lowestTied(ranks: seq[int]): int =
+    var seen = newSeq[bool](n)
+    result = -1
+    for r in ranks:
+      if seen[r] and (result < 0 or r < result): result = r
+      seen[r] = true
 
   proc signature(ranks: seq[int]): seq[int] =
     ## stereo labels in rank order: compares the outcomes of tie-breaks
@@ -172,31 +182,58 @@ proc canonicalRanks*(m: Mol; useStereo = true): seq[int] =
       result.add k[1]
       result.add k[2]
 
-  while nClasses < n:
-    var seen = newSeq[bool](n)
-    var tied = -1
-    for r in result:
-      if seen[r]:
-        if tied < 0 or r < tied: tied = r
-      seen[r] = true
-    # Once every stereo element has a label, tie-breaks (which keep the
-    # order of distinct ranks) can no longer change any label, so all
-    # candidates would have the same signature: take the first.
-    if searchStereo and allLabelled(m, result, stereoBonds):
-      searchStereo = false
-    if not searchStereo:
-      (result, nClasses) = breakTie(result, nClasses, tied, result.find(tied))
-      continue
-    # With stereo, which tied atom is promoted can matter (e.g. the two ring
-    # directions of cis-1,4-dimethylcyclohexane flip both centres' labels),
-    # so keep the choice whose stereo labels, in rank order, are smallest.
-    var best: (seq[int], int)
-    var bestSig: seq[int]
-    for i in 0..<n:
-      if result[i] != tied: continue
-      let candidate = breakTie(result, nClasses, tied, i)
-      let sig = signature(candidate[0])
-      if bestSig.len == 0 or cmpSeq(sig, bestSig) < 0:
-        best = candidate
-        bestSig = sig
-    (result, nClasses) = best
+  proc encoding(ranks: seq[int]): seq[int] =
+    ## The molecule written in terms of complete ranks (bonds, then stereo
+    ## labels): equal encodings mean the same labelled structure.
+    var bonds = m.bonds.mapIt(
+      (min(ranks[it.a], ranks[it.b]), max(ranks[it.a], ranks[it.b]), ord(it.order)))
+    bonds.sort()
+    for (x, y, o) in bonds: result.add [x, y, o]
+    result.add signature(ranks)
+
+  # Without stereo, or once every stereo element has a label, the choice of
+  # tied atom can't change any label (tie-breaks keep the order of distinct
+  # ranks), so the first is taken. Before that it can (e.g. the two ring
+  # directions of cis-1,4-dimethylcyclohexane flip both centres' labels):
+  # candidates are compared by their stereo labels, and if several tie,
+  # each is completed and the smallest final encoding wins (a search over
+  # an atom-order-independent set of choices, so the result is canonical).
+  # `budget` caps the number of refinements spent searching; beyond it
+  # the first candidate is taken.
+  var budget = maxSearchRefinements
+
+  proc complete(ranks0: seq[int]; nc0: int): seq[int] =
+    var (ranks, nc) = (ranks0, nc0)
+    while nc < n:
+      let tied = lowestTied(ranks)
+      if not stereo or budget <= 0 or allLabelled(m, ranks, stereoBonds):
+        (ranks, nc) = breakTie(ranks, nc, tied, ranks.find(tied))
+        continue
+      var best: seq[(seq[int], int)]
+      var bestSig: seq[int]
+      for i in 0..<n:
+        if ranks[i] != tied: continue
+        dec budget
+        let candidate = breakTie(ranks, nc, tied, i)
+        let sig = signature(candidate[0])
+        let c = if best.len == 0: -1 else: cmpSeq(sig, bestSig)
+        if c < 0:
+          best = @[candidate]
+          bestSig = sig
+        elif c == 0:
+          best.add candidate
+      if best.len == 1:
+        (ranks, nc) = best[0]
+        continue
+      var bestRanks: seq[int]
+      var bestCode: seq[int]
+      for (r, k) in best:
+        let full = complete(r, k)
+        let code = encoding(full)
+        if bestRanks.len == 0 or cmpSeq(code, bestCode) < 0:
+          bestRanks = full
+          bestCode = code
+      return bestRanks
+    ranks
+
+  result = complete(result, nClasses)

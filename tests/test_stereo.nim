@@ -32,6 +32,10 @@ const unique = [
   "C[S@](=O)c1ccccc1", "N[C@@H](Cc1ccccc1)C(=O)O",
   "OC[C@H]1OC(O)[C@H](O)[C@@H](O)[C@@H]1O",
   "C1/C=C\\CCCCC1", "C/C=C/c1ccccc1",
+  # linked rings whose ring stereo is only labelled after a later tie-break
+  "C[C@H]1CC[C@H]([C@H]2CC[C@@H](C)CC2)CC1",
+  "C[C@H]1CC[C@H](C[C@H]2CC[C@@H](C)CC2)CC1",
+  "C[C@H]1C[C@H]([C@H]2C[C@@H](C)C2)C1",
 ]
 
 suite "stereo canonical SMILES":
