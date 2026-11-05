@@ -6,15 +6,16 @@
 import std/[algorithm, sequtils]
 import ./mol
 
-func connectedComponents*(m: Mol; bondMask: seq[bool] = @[]): seq[int] =
+func connectedComponents*(m: Mol, bondMask: seq[bool] = @[]): seq[int] =
   ## Component id for every atom (ids numbered 0.. in order of first atom).
   ## With a non-empty `bondMask`, only bonds marked `true` connect atoms
   ## (e.g. `ringBonds(m)` gives ring systems).
   result = newSeqWith(m.numAtoms, -1)
   var nextId = 0
   var stack: seq[int]
-  for start in 0..<m.numAtoms:
-    if result[start] >= 0: continue
+  for start in 0 ..< m.numAtoms:
+    if result[start] >= 0:
+      continue
     result[start] = nextId
     stack.add start
     while stack.len > 0:
@@ -27,9 +28,13 @@ func connectedComponents*(m: Mol; bondMask: seq[bool] = @[]): seq[int] =
 
 func componentCount*(comp: openArray[int]): int =
   ## Number of components given the result of `connectedComponents`.
-  if comp.len == 0: 0 else: max(comp) + 1
+  if comp.len == 0:
+    0
+  else:
+    max(comp) + 1
 
-func numComponents*(m: Mol): int = componentCount(connectedComponents(m))
+func numComponents*(m: Mol): int =
+  componentCount(connectedComponents(m))
 
 func ringBonds*(m: Mol): seq[bool] =
   ## `true` for every bond that is part of at least one ring.
@@ -41,18 +46,24 @@ func ringBonds*(m: Mol): seq[bool] =
   var t = 0
   # stack frames: (atom, parent bond, next adjacency index)
   var stack: seq[(int, int, int)]
-  for root in 0..<n:
-    if disc[root] >= 0: continue
-    disc[root] = t; low[root] = t; inc t
+  for root in 0 ..< n:
+    if disc[root] >= 0:
+      continue
+    disc[root] = t
+    low[root] = t
+    inc t
     stack.add (root, -1, 0)
     while stack.len > 0:
       let (a, pb, idx) = stack[^1]
       if idx < m.adj[a].len:
         stack[^1][2] = idx + 1
         let (nb, bi) = m.adj[a][idx]
-        if bi == pb: continue
+        if bi == pb:
+          continue
         if disc[nb] < 0:
-          disc[nb] = t; low[nb] = t; inc t
+          disc[nb] = t
+          low[nb] = t
+          inc t
           stack.add (nb, bi, 0)
         else:
           low[a] = min(low[a], disc[nb])
@@ -62,7 +73,7 @@ func ringBonds*(m: Mol): seq[bool] =
           let p = stack[^1][0]
           low[p] = min(low[p], low[a])
           if low[a] > disc[p]:
-            result[pb] = false   # bridge
+            result[pb] = false # bridge
 
 func ringAtoms*(m: Mol): seq[bool] =
   ## `true` for atoms that belong to at least one ring.
@@ -78,30 +89,30 @@ func numRings*(m: Mol): int =
   ## cyclomatic number E - V + C.
   m.numBonds - m.numAtoms + m.numComponents
 
-func ringBondIndices*(m: Mol; ring: seq[int]): seq[int] =
+func ringBondIndices*(m: Mol, ring: seq[int]): seq[int] =
   ## Bond indices of a ring given as atoms in ring order (as from `sssr`).
-  for k in 0..<ring.len:
+  for k in 0 ..< ring.len:
     result.add m.bondBetween(ring[k], ring[(k + 1) mod ring.len])
 
 # ---------------------------------------------------------------------------
 # Smallest set of smallest rings (SSSR)
 
-type RingGraph = object
-  ## The ring-bond subgraph with local atom indices.
-  atoms: seq[int]                 ## local -> global atom index
-  adj: seq[seq[(int, int)]]       ## local neighbour, global bond index
-  bondCol: seq[int]               ## global bond -> column in cycle bit vectors (-1 if not a ring bond)
+type RingGraph = object ## The ring-bond subgraph with local atom indices.
+  atoms: seq[int] ## local -> global atom index
+  adj: seq[seq[(int, int)]] ## local neighbour, global bond index
+  bondCol: seq[int] ## global bond -> column in cycle bit vectors (-1 if not a ring bond)
   nCols: int
-  system: seq[int]                ## local atom -> ring system
-  systemBonds: seq[seq[int]]      ## per ring system: its bonds (global indices)
-  systemAtoms: seq[int]           ## per ring system: number of atoms
+  system: seq[int] ## local atom -> ring system
+  systemBonds: seq[seq[int]] ## per ring system: its bonds (global indices)
+  systemAtoms: seq[int] ## per ring system: number of atoms
 
 func buildRingGraph(m: Mol): RingGraph =
   let inRing = ringBonds(m)
   var local = newSeqWith(m.numAtoms, -1)
   result.bondCol = newSeqWith(m.numBonds, -1)
   for bi, bd in m.bonds:
-    if not inRing[bi]: continue
+    if not inRing[bi]:
+      continue
     result.bondCol[bi] = result.nCols
     inc result.nCols
     for a in [bd.a, bd.b]:
@@ -112,8 +123,9 @@ func buildRingGraph(m: Mol): RingGraph =
     result.adj[local[bd.a]].add (local[bd.b], bi)
     result.adj[local[bd.b]].add (local[bd.a], bi)
   result.system = newSeqWith(result.atoms.len, -1)
-  for start in 0..<result.atoms.len:
-    if result.system[start] >= 0: continue
+  for start in 0 ..< result.atoms.len:
+    if result.system[start] >= 0:
+      continue
     let id = result.systemBonds.len
     result.systemBonds.add @[]
     result.systemAtoms.add 0
@@ -123,17 +135,18 @@ func buildRingGraph(m: Mol): RingGraph =
       let a = stack.pop
       inc result.systemAtoms[id]
       for (nb, bi) in result.adj[a]:
-        if nb > a: result.systemBonds[id].add bi
+        if nb > a:
+          result.systemBonds[id].add bi
         if result.system[nb] < 0:
           result.system[nb] = id
           stack.add nb
 
-func isolated(g: RingGraph; li: int): bool =
+func isolated(g: RingGraph, li: int): bool =
   ## Whether local atom `li` is in a ring system that is a single ring.
   let sys = g.system[li]
   g.systemBonds[sys].len == g.systemAtoms[sys]
 
-func bfsParents(g: RingGraph; src, skipBond: int): seq[(int, int)] =
+func bfsParents(g: RingGraph, src, skipBond: int): seq[(int, int)] =
   ## BFS tree from `src`: (parent, bond) per local atom; (-1, -1) for the
   ## root, (-2, -2) for unreached atoms.
   result = newSeqWith(g.atoms.len, (-2, -2))
@@ -144,11 +157,12 @@ func bfsParents(g: RingGraph; src, skipBond: int): seq[(int, int)] =
     let a = queue[head]
     inc head
     for (nb, bi) in g.adj[a]:
-      if bi == skipBond or result[nb][0] != -2: continue
+      if bi == skipBond or result[nb][0] != -2:
+        continue
       result[nb] = (a, bi)
       queue.add nb
 
-func pathToRoot(parents: seq[(int, int)]; a: int): (seq[int], seq[int]) =
+func pathToRoot(parents: seq[(int, int)], a: int): (seq[int], seq[int]) =
   ## (atoms, bonds) on the tree path from `a` up to the root (atoms include both ends).
   var atoms = @[a]
   var bonds: seq[int]
@@ -159,7 +173,7 @@ func pathToRoot(parents: seq[(int, int)]; a: int): (seq[int], seq[int]) =
     atoms.add cur
   (atoms, bonds)
 
-func orderRingAtoms(m: Mol; bonds: seq[int]): seq[int] =
+func orderRingAtoms(m: Mol, bonds: seq[int]): seq[int] =
   ## Atom indices of a simple cycle, given its bonds, in walking order.
   var remaining = bonds
   let first = m.bonds[remaining.pop]
@@ -175,38 +189,45 @@ func orderRingAtoms(m: Mol; bonds: seq[int]): seq[int] =
     let bd = m.bonds[remaining[found]]
     remaining.delete found
     let next = bd.otherAtom(last)
-    if remaining.len > 0: result.add next   # last bond closes back to the start
+    if remaining.len > 0:
+      result.add next
+      # last bond closes back to the start
 
-func gf2Vector(g: RingGraph; cycle: seq[int]): seq[uint64] =
+func gf2Vector(g: RingGraph, cycle: seq[int]): seq[uint64] =
   ## A cycle (global bond indices) as a bit vector over ring bonds.
   result = newSeq[uint64]((g.nCols + 63) div 64)
   for bi in cycle:
     let col = g.bondCol[bi]
     result[col div 64] = result[col div 64] xor (1'u64 shl (col mod 64))
 
-type Gf2Basis = seq[(int, seq[uint64])]   ## (pivot column, reduced vector)
+type Gf2Basis = seq[(int, seq[uint64])] ## (pivot column, reduced vector)
 
-func reduce(basis: Gf2Basis; v: var seq[uint64]): int =
+func reduce(basis: Gf2Basis, v: var seq[uint64]): int =
   ## Reduces `v` against `basis`; returns its pivot column, or -1 if `v`
   ## is a combination of the basis vectors.
   for (piv, bv) in basis:
     if (v[piv div 64] shr (piv mod 64) and 1) == 1:
-      for w in 0..<v.len: v[w] = v[w] xor bv[w]
-  for w in 0..<v.len:
+      for w in 0 ..< v.len:
+        v[w] = v[w] xor bv[w]
+  for w in 0 ..< v.len:
     if v[w] != 0:
-      for bit in 0..63:
-        if (v[w] shr bit and 1) == 1: return w * 64 + bit
+      for bit in 0 .. 63:
+        if (v[w] shr bit and 1) == 1:
+          return w * 64 + bit
   -1
 
 func shortestCycleCandidates(g: RingGraph): seq[seq[int]] =
   ## The shortest cycle through each ring bond: for a ring system that is
   ## a single ring, the ring itself.
   for sys, bonds in g.systemBonds:
-    if bonds.len == g.systemAtoms[sys]: result.add bonds
-  for li in 0..<g.atoms.len:
-    if isolated(g, li): continue
+    if bonds.len == g.systemAtoms[sys]:
+      result.add bonds
+  for li in 0 ..< g.atoms.len:
+    if isolated(g, li):
+      continue
     for (lj, bi) in g.adj[li]:
-      if lj < li: continue
+      if lj < li:
+        continue
       let parents = bfsParents(g, li, bi)
       var cyc = pathToRoot(parents, lj)[1]
       cyc.add bi
@@ -216,27 +237,38 @@ func hortonCandidates(g: RingGraph): seq[seq[int]] =
   ## P(x,u) + (u,v) + P(x,v) for every ring atom x and ring bond (u,v)
   ## whose two shortest-path-tree paths only meet at x. Isolated rings are
   ## skipped: `shortestCycleCandidates` already gives them.
-  for x in 0..<g.atoms.len:
-    if isolated(g, x): continue
+  for x in 0 ..< g.atoms.len:
+    if isolated(g, x):
+      continue
     let parents = bfsParents(g, x, -1)
     # the paths from u and v only meet at x iff they leave x by different
     # children (or one of them is x)
     var branch = newSeqWith(g.atoms.len, -1)
-    for u in 0..<g.atoms.len:
-      if parents[u][0] < 0: continue   # x itself, or another ring system
+    for u in 0 ..< g.atoms.len:
+      if parents[u][0] < 0:
+        continue # x itself, or another ring system
       var cur = u
-      while parents[cur][0] != x and branch[cur] < 0: cur = parents[cur][0]
-      let b = if branch[cur] >= 0: branch[cur] else: cur
+      while parents[cur][0] != x and branch[cur] < 0:
+        cur = parents[cur][0]
+      let b =
+        if branch[cur] >= 0:
+          branch[cur]
+        else:
+          cur
       cur = u
       while branch[cur] < 0:
         branch[cur] = b
-        if parents[cur][0] == x: break
+        if parents[cur][0] == x:
+          break
         cur = parents[cur][0]
-    for u in 0..<g.atoms.len:
-      if parents[u][0] == -2: continue
+    for u in 0 ..< g.atoms.len:
+      if parents[u][0] == -2:
+        continue
       for (v, bi) in g.adj[u]:
-        if v < u or parents[u][1] == bi or parents[v][1] == bi: continue
-        if branch[u] >= 0 and branch[u] == branch[v]: continue
+        if v < u or parents[u][1] == bi or parents[v][1] == bi:
+          continue
+        if branch[u] >= 0 and branch[u] == branch[v]:
+          continue
         result.add pathToRoot(parents, u)[1] & pathToRoot(parents, v)[1] & @[bi]
 
 proc sssr*(m: Mol): seq[seq[int]] =
@@ -245,21 +277,27 @@ proc sssr*(m: Mol): seq[seq[int]] =
   ## systems the choice between equal-sized rings is not unique (see
   ## `symmetrizedSssr`).
   let need = numRings(m)
-  if need == 0: return
+  if need == 0:
+    return
   let g = buildRingGraph(m)
 
   proc select(cands: seq[seq[int]]): seq[seq[int]] =
     ## Greedy GF(2) elimination: shortest linearly independent cycles.
     var sorted = cands
-    sorted.sort(proc (x, y: seq[int]): int = cmp(x.len, y.len))
+    sorted.sort(
+      proc(x, y: seq[int]): int =
+        cmp(x.len, y.len)
+    )
     var basis: Gf2Basis
     for c in sorted:
       var v = gf2Vector(g, c)
       let piv = reduce(basis, v)
-      if piv < 0: continue
+      if piv < 0:
+        continue
       basis.add (piv, v)
       result.add c
-      if result.len == need: break
+      if result.len == need:
+        break
 
   var candidates = shortestCycleCandidates(g)
   var chosen = select(candidates)
@@ -275,15 +313,20 @@ proc symmetrizedSssr*(m: Mol): seq[seq[int]] =
   ## strictly smaller rings (the "relevant cycles"). E.g. bicyclo[2.2.2]octane
   ## gives 3 six-membered rings and cubane 6 four-membered ones, as RDKit's
   ## symmetrized SSSR does; naphthalene still gives 2.
-  if numRings(m) == 0: return
+  if numRings(m) == 0:
+    return
   let g = buildRingGraph(m)
   var candidates = shortestCycleCandidates(g) & hortonCandidates(g)
-  for c in candidates.mitems: c.sort()
-  candidates.sort(proc (x, y: seq[int]): int =
-    result = cmp(x.len, y.len)
-    for i in 0..<x.len:
-      if result != 0: break
-      result = cmp(x[i], y[i]))
+  for c in candidates.mitems:
+    c.sort()
+  candidates.sort(
+    proc(x, y: seq[int]): int =
+      result = cmp(x.len, y.len)
+      for i in 0 ..< x.len:
+        if result != 0:
+          break
+        result = cmp(x[i], y[i])
+  )
   var basis: Gf2Basis
   var k = 0
   while k < candidates.len:
@@ -292,7 +335,7 @@ proc symmetrizedSssr*(m: Mol): seq[seq[int]] =
     let size = candidates[k].len
     var group: seq[seq[uint64]]
     while k < candidates.len and candidates[k].len == size:
-      if k == 0 or candidates[k] != candidates[k-1]:
+      if k == 0 or candidates[k] != candidates[k - 1]:
         var v = gf2Vector(g, candidates[k])
         if reduce(basis, v) >= 0:
           result.add orderRingAtoms(m, candidates[k])
@@ -300,4 +343,5 @@ proc symmetrizedSssr*(m: Mol): seq[seq[int]] =
       inc k
     for v in group.mitems:
       let piv = reduce(basis, v)
-      if piv >= 0: basis.add (piv, v)
+      if piv >= 0:
+        basis.add (piv, v)

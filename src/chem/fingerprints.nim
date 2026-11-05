@@ -15,12 +15,13 @@
 import std/[tables, sets, algorithm, bitops]
 import ./[mol, elements, valence, rings, query, smarts, substruct, bitvect, rdkitdata]
 
-type MorganEnv* = tuple
-  ## One environment: its bit ID (before folding), centre atom and radius.
-  id: uint32
-  atom, radius: int
+type MorganEnv* =
+  tuple
+    ## One environment: its bit ID (before folding), centre atom and radius.
+    id: uint32
+    atom, radius: int
 
-func hashCombine(seed: var uint32; v: uint32) {.inline.} =
+func hashCombine(seed: var uint32, v: uint32) {.inline.} =
   ## boost::hash_combine, as RDKit uses it (on 32-bit values).
   seed = seed xor (v + 0x9e3779b9'u32 + (seed shl 6) + (seed shr 2))
 
@@ -39,8 +40,10 @@ func massShift(a: Atom): int =
   ## average weight: 0 without an isotope label, and for dummy atoms (whose
   ## mass RDKit takes as 0, label or not). The shift is truncated, so a few
   ## isotopes (32P, 28Al, ...) need RDKit's own weights to match it.
-  if a.isotope == 0 or a.element == 0: 0
-  else: int(isotopeMass(a.element, a.isotope) - rdkitAtomicWeights[a.element])
+  if a.isotope == 0 or a.element == 0:
+    0
+  else:
+    int(isotopeMass(a.element, a.isotope) - rdkitAtomicWeights[a.element])
 
 proc connectivityInvariants*(m: Mol): seq[uint32] =
   ## Per-atom starting invariants for ECFP-style fingerprints (RDKit's
@@ -52,12 +55,19 @@ proc connectivityInvariants*(m: Mol): seq[uint32] =
     let h = totalHCount(m, i)
     var hAtoms = 0
     for nb in m.neighbors(i):
-      if m.atoms[nb].element == 1: inc hAtoms
+      if m.atoms[nb].element == 1:
+        inc hAtoms
     var x = 0'u32
-    for v in [a.element.uint32, uint32(m.degree(i) + h), uint32(h + hAtoms),
-              cast[uint32](a.charge.int32), cast[uint32](a.massShift.int32)]:
+    for v in [
+      a.element.uint32,
+      uint32(m.degree(i) + h),
+      uint32(h + hAtoms),
+      cast[uint32](a.charge.int32),
+      cast[uint32](a.massShift.int32),
+    ]:
       hashCombine(x, v)
-    if inRing[i]: hashCombine(x, 1)
+    if inRing[i]:
+      hashCombine(x, 1)
     result[i] = x
 
 const featureSmarts = [
@@ -75,9 +85,10 @@ const featureSmarts = [
     "$([N;H1&+0]([$([C,a]);!$([C,a](=O))])[$([C,a]);!$([C,a](=O))])," &
     "$([N;H0&+0]([C;!$(C(=O))])([C;!$(C(=O))])[C;!$(C(=O))])]",
   # acidic
-  "[$([C,S](=[O,S,P])-[O;H1,-1])]"]
+  "[$([C,S](=[O,S,P])-[O;H1,-1])]",
+]
 
-var featurePatterns {.threadvar.}: seq[Query]   # parsed on first use
+var featurePatterns {.threadvar.}: seq[Query] # parsed on first use
 
 proc featureInvariants*(m: Mol): seq[uint32] =
   ## Per-atom starting invariants for FCFP-style fingerprints (RDKit's
@@ -91,8 +102,9 @@ proc featureInvariants*(m: Mol): seq[uint32] =
     for match in m.substructMatches(q, uniquify = false, maxMatches = 1000):
       result[match[0]] = result[match[0]] or (1'u32 shl j)
 
-func morganEnvironments*(m: Mol; invariants: openArray[uint32]; radius = 2;
-                         useBondTypes = true): seq[MorganEnv] =
+func morganEnvironments*(
+    m: Mol, invariants: openArray[uint32], radius = 2, useBondTypes = true
+): seq[MorganEnv] =
   ## The environments of a Morgan fingerprint built from per-atom
   ## `invariants`: every atom at radius 0, then each round's new
   ## environments (the same set as RDKit's, though within a round RDKit
@@ -103,7 +115,8 @@ func morganEnvironments*(m: Mol; invariants: openArray[uint32]; radius = 2;
   # per atom, the bonds within the current radius: `words` words each
   let words = (m.numBonds + 63) div 64
   var current = @invariants
-  for i in 0..<n: result.add (current[i], i, 0)
+  for i in 0 ..< n:
+    result.add (current[i], i, 0)
   var hood, nextHood = newSeq[uint64](n * words)
   var seen = initHashSet[seq[uint64]]()
   var key = newSeq[uint64](words)
@@ -111,20 +124,26 @@ func morganEnvironments*(m: Mol; invariants: openArray[uint32]; radius = 2;
   var next = newSeq[uint32](n)
   var nbrs: seq[(uint32, uint32)]
   var round: seq[(uint32, int)]
-  for layer in 0..<radius:
-    next.fill(0)   # dead atoms pass on 0, as in RDKit
+  for layer in 0 ..< radius:
+    next.fill(0) # dead atoms pass on 0, as in RDKit
     nextHood = hood
     round.setLen 0
-    for i in 0..<n:
-      if dead[i]: continue
+    for i in 0 ..< n:
+      if dead[i]:
+        continue
       if m.degree(i) == 0:
         dead[i] = true
         continue
       nbrs.setLen 0
       for (nb, bi) in m.adj[i]:
         nextHood[i * words + (bi shr 6)].setBit(bi and 63)
-        for k in 0..<words: nextHood[i * words + k] = nextHood[i * words + k] or hood[nb * words + k]
-        let bt = if useBondTypes: rdkitBondType(m.bonds[bi].order) else: 1
+        for k in 0 ..< words:
+          nextHood[i * words + k] = nextHood[i * words + k] or hood[nb * words + k]
+        let bt =
+          if useBondTypes:
+            rdkitBondType(m.bonds[bi].order)
+          else:
+            1
         nbrs.add (bt, current[nb])
       nbrs.sort()
       var h = layer.uint32
@@ -141,29 +160,38 @@ func morganEnvironments*(m: Mol; invariants: openArray[uint32]; radius = 2;
     # takes no further part
     round.sort()
     for (h, i) in round:
-      for k in 0..<words: key[k] = nextHood[i * words + k]
-      if seen.containsOrIncl(key): dead[i] = true
-      else: result.add (h, i, layer + 1)
+      for k in 0 ..< words:
+        key[k] = nextHood[i * words + k]
+      if seen.containsOrIncl(key):
+        dead[i] = true
+      else:
+        result.add (h, i, layer + 1)
     swap(current, next)
     swap(hood, nextHood)
 
-proc morganInvariants*(m: Mol; useFeatures = false): seq[uint32] =
+proc morganInvariants*(m: Mol, useFeatures = false): seq[uint32] =
   ## The starting invariants Morgan fingerprints use: `featureInvariants`
   ## or `connectivityInvariants`.
-  if useFeatures: featureInvariants(m) else: connectivityInvariants(m)
+  if useFeatures:
+    featureInvariants(m)
+  else:
+    connectivityInvariants(m)
 
-proc morganCounts*(m: Mol; radius = 2; useFeatures = false;
-                   useBondTypes = true): CountTable[uint32] =
+proc morganCounts*(
+    m: Mol, radius = 2, useFeatures = false, useBondTypes = true
+): CountTable[uint32] =
   ## The unfolded Morgan fingerprint: how often each environment hash
   ## occurs (RDKit's `GetSparseCountFingerprint`).
   for e in morganEnvironments(m, morganInvariants(m, useFeatures), radius, useBondTypes):
     result.inc e.id
 
-proc morganFingerprint*(m: Mol; radius = 2; nBits = 2048; useFeatures = false;
-                        useBondTypes = true): BitVect =
+proc morganFingerprint*(
+    m: Mol, radius = 2, nBits = 2048, useFeatures = false, useBondTypes = true
+): BitVect =
   ## The Morgan fingerprint folded to `nBits` bits (RDKit's
   ## `GetFingerprint`; radius 2 is ECFP4, or FCFP4 with `useFeatures`).
-  if nBits <= 0: raise newException(ValueError, "nBits must be positive")
+  if nBits <= 0:
+    raise newException(ValueError, "nBits must be positive")
   result = initBitVect(nBits)
   for e in morganEnvironments(m, morganInvariants(m, useFeatures), radius, useBondTypes):
     result.incl int(e.id mod nBits.uint32)

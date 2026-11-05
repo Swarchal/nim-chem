@@ -20,8 +20,9 @@ suite "SMILES parser":
     let m = parseSmiles("c1ccccc1")
     check m.numAtoms == 6
     check m.numBonds == 6
-    for bd in m.bonds: check bd.order == boAromatic
-    for i in 0..5:
+    for bd in m.bonds:
+      check bd.order == boAromatic
+    for i in 0 .. 5:
       check m.atoms[i].aromatic
       check totalHCount(m, i) == 1
 
@@ -82,8 +83,9 @@ suite "SMILES parser":
     check parseSmiles("").numAtoms == 0
 
   test "syntax errors":
-    for bad in ["C1CC", "C(C", "CC)", "C==C", "[C", "Xx", "C%1", "(C)",
-                "[Zz]", "C=", "C11", "=C"]:
+    for bad in [
+      "C1CC", "C(C", "CC)", "C==C", "[C", "Xx", "C%1", "(C)", "[Zz]", "C=", "C11", "=C"
+    ]:
       expect SmilesError:
         discard parseSmiles(bad)
 
@@ -97,8 +99,10 @@ suite "SMILES parser":
 
 suite "SMILES parser regressions":
   test "oversized numbers raise SmilesError, not OverflowDefect":
-    for bad in ["[99999999999999999999C]", "[C:99999999999999999999]",
-                "[CH99999999999999999999]", "[C+99999999999999999999]"]:
+    for bad in [
+      "[99999999999999999999C]", "[C:99999999999999999999]", "[CH99999999999999999999]",
+      "[C+99999999999999999999]",
+    ]:
       expect SmilesError:
         discard parseSmiles(bad, sanitize = false)
 

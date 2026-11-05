@@ -23,19 +23,24 @@ if paramStr(1) == "--chiral":
       echo "ERROR"
       continue
     try:
-      echo int(parseSmiles(f[0]).hasSubstructMatch(parseSmarts(f[1]), useChirality = true))
+      echo int(
+        parseSmiles(f[0]).hasSubstructMatch(parseSmarts(f[1]), useChirality = true)
+      )
     except ChemError:
       echo "ERROR"
   quit()
 
 var patterns: seq[(bool, Query)]
 for line in lines(paramStr(1)):
-  try: patterns.add (true, parseSmarts(line))
-  except SmartsError: patterns.add (false, Query())
+  try:
+    patterns.add (true, parseSmarts(line))
+  except SmartsError:
+    patterns.add (false, Query())
 
 for line in stdin.lines:
   let fields = line.strip.split(maxsplit = 1)
-  if fields.len == 0: continue
+  if fields.len == 0:
+    continue
   var row = @[fields[0]]
   try:
     let m = parseSmiles(fields[0])

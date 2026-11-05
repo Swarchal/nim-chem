@@ -1,7 +1,8 @@
 import std/[unittest, math, sequtils]
 import chem
 
-func near(a, b: float): bool = abs(a - b) < 1e-9
+func near(a, b: float): bool =
+  abs(a - b) < 1e-9
 
 suite "descriptors":
   test "formula":
@@ -48,47 +49,51 @@ suite "descriptors":
 # reference values from RDKit (rdMolDescriptors, Crippen, QED)
 suite "RDKit descriptors":
   test "Crippen logP and MR":
-    for (smiles, logP, mr) in [("CC(=O)Oc1ccccc1C(=O)O", 1.3101, 44.71030000000002),
-                               ("CC(=O)Nc1ccc(O)cc1", 1.3505999999999998, 42.41050000000002),
-                               ("C1CC2CCC1CC2", 2.5866000000000007, 34.68199999999999),
-                               ("OCC(F)(F)F", 0.5410000000000001, 13.140800000000002),
-                               ("C[C-](C)C", 1.62059, 20.264999999999997),
-                               ("c1ccc2[nH]ccc2c1", 2.1678999999999995, 38.29870000000001)]:
+    for (smiles, logP, mr) in [
+      ("CC(=O)Oc1ccccc1C(=O)O", 1.3101, 44.71030000000002),
+      ("CC(=O)Nc1ccc(O)cc1", 1.3505999999999998, 42.41050000000002),
+      ("C1CC2CCC1CC2", 2.5866000000000007, 34.68199999999999),
+      ("OCC(F)(F)F", 0.5410000000000001, 13.140800000000002),
+      ("C[C-](C)C", 1.62059, 20.264999999999997),
+      ("c1ccc2[nH]ccc2c1", 2.1678999999999995, 38.29870000000001),
+    ]:
       checkpoint smiles
       let m = parseSmiles(smiles)
       check near(m.crippenLogP, logP) and near(m.crippenMR, mr)
       check near(m.crippenContribs.mapIt(it.logP).sum, logP)
-      check near(m.addHs.crippenLogP, logP)   # the same with H atoms
+      check near(m.addHs.crippenLogP, logP) # the same with H atoms
     check parseSmiles("CC(=O)Nc1ccc(O)cc1").crippenAtomTypes ==
       @["C1", "C5", "O9", "N4", "C22", "C18", "C18", "C23", "O2", "C18", "C18"]
     # H on N is typed H3, before the general H on heteroatoms (as RDKit's C++)
     check near(parseSmiles("CN").crippenLogP, -0.4251)
 
   test "TPSA and Labute ASA":
-    for (smiles, psa, asa) in [("CC(=O)Oc1ccccc1C(=O)O", 63.60000000000001, 74.75705264447721),
-                               ("CC(=O)Nc1ccc(O)cc1", 49.33, 64.66690538413799),
-                               ("C1CO1", 12.53, 19.21190721820381),       # O in a 3-ring
-                               ("c1ccc2[nH]ccc2c1", 15.79, 53.322228072246475),
-                               ("C1CC2CCC1CC2", 0.0, 51.282183521547346)]:
+    for (smiles, psa, asa) in [
+      ("CC(=O)Oc1ccccc1C(=O)O", 63.60000000000001, 74.75705264447721),
+      ("CC(=O)Nc1ccc(O)cc1", 49.33, 64.66690538413799),
+      ("C1CO1", 12.53, 19.21190721820381), # O in a 3-ring
+      ("c1ccc2[nH]ccc2c1", 15.79, 53.322228072246475),
+      ("C1CC2CCC1CC2", 0.0, 51.282183521547346),
+    ]:
       checkpoint smiles
       let m = parseSmiles(smiles)
       check near(m.tpsa, psa) and near(m.labuteASA, asa)
       check near(m.addHs.tpsa, psa)
     check parseSmiles("*").labuteASA == 0.0
     check parseSmiles("*C").labuteASA == parseSmiles("C").labuteASA
-    check parseSmiles("**").labuteASA == 0.0   # (RDKit: NaN, from 0 / 0)
+    check parseSmiles("**").labuteASA == 0.0 # (RDKit: NaN, from 0 / 0)
 
   test "H-bond donors and acceptors":
     let m = parseSmiles("CC(=O)Oc1ccccc1C(=O)O")
     check m.numHDonors == 1 and m.numHAcceptors == 3
     check m.numLipinskiHDonors == 1 and m.numLipinskiHAcceptors == 4
-    check parseSmiles("c1ccc2[nH]ccc2c1").numHAcceptors == 0   # 3-connected n
+    check parseSmiles("c1ccc2[nH]ccc2c1").numHAcceptors == 0 # 3-connected n
     check parseSmiles("c1ccncc1").numHAcceptors == 1
-    check parseSmiles("NCC(=O)N").numHAcceptors == 2           # not the amide N
+    check parseSmiles("NCC(=O)N").numHAcceptors == 2 # not the amide N
     check parseSmiles("[NH3+]C").numHDonors == 1
     check parseSmiles("[NH3+]C").addHs.numLipinskiHDonors == 3
     check parseSmiles("CCl.[Na+]").numHeteroatoms == 2
-    check parseSmiles("NCCN.NCCN.NCCN").lipinskiViolations == 1   # 12 NH, 6 N
+    check parseSmiles("NCCN.NCCN.NCCN").lipinskiViolations == 1 # 12 NH, 6 N
     check parseSmiles("CC(=O)Oc1ccccc1C(=O)O").lipinskiViolations == 0
 
   test "ring counts":

@@ -2,7 +2,7 @@ import std/[unittest, random, algorithm, sequtils, strutils]
 import chem
 import ./helpers
 
-proc count(smiles, smarts: string; uniquify = true): int =
+proc count(smiles, smarts: string, uniquify = true): int =
   parseSmiles(smiles).substructMatches(parseSmarts(smarts), uniquify = uniquify).len
 
 proc hits(smiles, smarts: string): bool =
@@ -13,9 +13,20 @@ proc chiralHit(smiles, query: string): bool =
 
 suite "SMARTS parsing":
   test "errors carry a position":
-    for (s, pos) in [("C(C", 3), ("[C", 0), ("C1CC", 4), ("CC=", 2), ("[Zz]", 1),
-                     ("C)", 1), ("[$(C]", 1), ("", 0), ("[C;$(C=[O;Q])]", 10),
-                     ("C/C=C(/F)/Cl", 9), ("C-1CC=1", 6), ("[C@SP1](F)(Cl)Br", 2)]:
+    for (s, pos) in [
+      ("C(C", 3),
+      ("[C", 0),
+      ("C1CC", 4),
+      ("CC=", 2),
+      ("[Zz]", 1),
+      ("C)", 1),
+      ("[$(C]", 1),
+      ("", 0),
+      ("[C;$(C=[O;Q])]", 10),
+      ("C/C=C(/F)/Cl", 9),
+      ("C-1CC=1", 6),
+      ("[C@SP1](F)(Cl)Br", 2),
+    ]:
       try:
         discard parseSmarts(s)
         checkpoint s
@@ -29,11 +40,13 @@ suite "SMARTS parsing":
     check q.atoms.mapIt(it.atomMap) == @[1, 0, 2]
 
   test "patterns from the RDKit data files parse":
-    for s in ["[CH1X4]([N,O,P,S,F,Cl,Br,I])([A;!#1])[A;!#1]",
-              "[NH0;+,+2,+3](=[A;!#1])([A;!#1])[!#1;A,a]",
-              "[$(a-[CH3]),$(a-[CH2]-[CH3]),$(a-[CH2]-[CH2]~[!N;!O]);!$(a(:a!:*):a!:*)]",
-              "c:1:c:c(:c:c:c:1-[#6;X4]-c:2:c:c:c(:c:c:2)-[#7&H2,$([#7;!H0]-[#6;X4])])",
-              "[#6]-[#16;X2]-[#6](=[#16])", "[OX1;-,-2,-3][!#1;!N;!S]", "C-,:C", "*!@*"]:
+    for s in [
+      "[CH1X4]([N,O,P,S,F,Cl,Br,I])([A;!#1])[A;!#1]",
+      "[NH0;+,+2,+3](=[A;!#1])([A;!#1])[!#1;A,a]",
+      "[$(a-[CH3]),$(a-[CH2]-[CH3]),$(a-[CH2]-[CH2]~[!N;!O]);!$(a(:a!:*):a!:*)]",
+      "c:1:c:c(:c:c:c:1-[#6;X4]-c:2:c:c:c(:c:c:2)-[#7&H2,$([#7;!H0]-[#6;X4])])",
+      "[#6]-[#16;X2]-[#6](=[#16])", "[OX1;-,-2,-3][!#1;!N;!S]", "C-,:C", "*!@*",
+    ]:
       checkpoint s
       check parseSmarts(s).numAtoms > 0
 
@@ -41,7 +54,8 @@ suite "SMARTS parsing":
     check chiralHit("C[C@H](F)Cl", "[C@D3](C)(F)Cl")
     check not chiralHit("C[C@H](F)Cl", "[C@@D3](C)(F)Cl")
     check chiralHit("C[C@H](F)Cl", "[C@X4](C)(F)Cl")
-    check chiralHit("C[C@H](F)Cl", "[C@TH1H](C)(F)Cl") == chiralHit("C[C@H](F)Cl", "[C@H](C)(F)Cl")
+    check chiralHit("C[C@H](F)Cl", "[C@TH1H](C)(F)Cl") ==
+      chiralHit("C[C@H](F)Cl", "[C@H](C)(F)Cl")
 
   test "ring closure bonds":
     check count("C1CC1", "C-1CC-1") == 1
@@ -62,7 +76,7 @@ suite "atom primitives":
     check count("CC", "*") == 2
 
   test "hydrogens and connectivity":
-    let s = "CC(C)(C)CO"                 # neopentyl alcohol
+    let s = "CC(C)(C)CO" # neopentyl alcohol
     check count(s, "[CH3]") == 3
     check count(s, "[CH2]") == 1
     check count(s, "[CH0]") == 1
@@ -71,9 +85,9 @@ suite "atom primitives":
     check count(s, "[X4]") == 5
     check count(s, "[OX2H]") == 1
     check count("C[NH3+]", "[NX4+]") == 1
-    check count("C[nH]1cccc1", "[nH]") == 0   # not a valid pyrrole spelling
+    check count("C[nH]1cccc1", "[nH]") == 0 # not a valid pyrrole spelling
     check count("c1cc[nH]c1", "[nH]") == 1
-    check count("c1cc[nH]c1", "[h]") == 5      # any H not stored as an atom
+    check count("c1cc[nH]c1", "[h]") == 5 # any H not stored as an atom
     # hydrogen atoms are removed when reading, unless asked not to
     check count("[H]C([H])C", "[#1]") == 0
     check count("[H]C([H])C", "[H3]") == 2
@@ -103,12 +117,12 @@ suite "atom primitives":
     check count(s, "[x3]") == 2
     check count(s, "[x]") == 13
     check count(s, "[!R]") == 1
-    check count("C1CC2CCC1CC2", "[R3]") == 2   # bicyclo[2.2.2]octane bridgeheads
+    check count("C1CC2CCC1CC2", "[R3]") == 2 # bicyclo[2.2.2]octane bridgeheads
 
   test "logical operators and precedence":
     let s = "CNC(=O)O"
-    check count(s, "[C,N;H1]") == 1       # (C or N) and H1
-    check count(s, "[C,N&H1]") == 3       # C or (N and H1)
+    check count(s, "[C,N;H1]") == 1 # (C or N) and H1
+    check count(s, "[C,N&H1]") == 3 # C or (N and H1)
     check count(s, "[!C]") == 3
     check count(s, "[!C;!N]") == 2
     check count(s, "[C&!H3]") == 1
@@ -120,14 +134,14 @@ suite "atom primitives":
     check count(s, "[$(C(=O)[OH])]") == 1
     check count(s, "[O;$(OC=O);!$(O[H]);!$([OH])]") == 1
     check count(s, "[C;!$(C=O)]") == 2
-    check count(s, "[$([OX2]C(=O)[$([CH3])])]") == 1      # nested
+    check count(s, "[$([OX2]C(=O)[$([CH3])])]") == 1 # nested
     check count(s, "[$(*=O)]~[O;!H1]") == 3
 
 suite "bonds and topology":
   test "bond primitives":
     check count("c1ccccc1C=CC#N", "c:c") == 6
     check count("c1ccccc1C=CC#N", "c-c") == 0
-    check count("c1ccccc1C=CC#N", "cC") == 1      # unwritten: single or aromatic
+    check count("c1ccccc1C=CC#N", "cC") == 1 # unwritten: single or aromatic
     check count("c1ccccc1C=CC#N", "cc") == 6
     check count("c1ccccc1C=CC#N", "C=C") == 1
     check count("c1ccccc1C=CC#N", "C#N") == 1
@@ -149,8 +163,8 @@ suite "bonds and topology":
   test "uniquify and maxMatches":
     check count("c1ccccc1", "c1ccccc1") == 1
     check count("c1ccccc1", "c1ccccc1", uniquify = false) == 12
-    check count("CC(C)(C)C", "C(C)(C)C", uniquify = false) == 24   # 4!
-    check count("CC(C)(C)C", "C(C)(C)C") == 4     # distinct atom sets
+    check count("CC(C)(C)C", "C(C)(C)C", uniquify = false) == 24 # 4!
+    check count("CC(C)(C)C", "C(C)(C)C") == 4 # distinct atom sets
     let m = parseSmiles("CCCCCCCC")
     check m.substructMatches(parseSmarts("C"), maxMatches = 3).len == 3
 
@@ -169,20 +183,21 @@ suite "bonds and topology":
     for smarts in ["[$(C=O)]N", "c[OH]", "[R]", "[r3]", "*", "C(=O)N", "a:a"]:
       let q = parseSmarts(smarts)
       let n = m.substructMatches(q).len
-      for _ in 0..<10:
+      for _ in 0 ..< 10:
         check m.shuffled(r).substructMatches(q).len == n
 
 suite "molecule queries":
   test "SMILES as a query":
     let aspirin = parseSmiles("CC(=O)Oc1ccccc1C(=O)O")
     check aspirin.hasSubstructMatch(parseSmiles("c1ccccc1"))
-    check aspirin.hasSubstructMatch(parseSmiles("CC=O"))      # H counts not compared
-    check aspirin.hasSubstructMatch(parseSmiles("C1=CC=CC=C1C"))  # Kekulé input is aromatic again
+    check aspirin.hasSubstructMatch(parseSmiles("CC=O")) # H counts not compared
+    check aspirin.hasSubstructMatch(parseSmiles("C1=CC=CC=C1C"))
+      # Kekulé input is aromatic again
     check not aspirin.hasSubstructMatch(parseSmiles("C1=CCCC=C1"))
     check aspirin.substructMatches(parseSmiles("C(=O)O")).len == 2
     check not parseSmiles("CC(=O)[O-]").hasSubstructMatch(parseSmiles("C[O+]"))
     check parseSmiles("CC(=O)[O-]").hasSubstructMatch(parseSmiles("[O-]"))
-    check parseSmiles("CC(=O)[O-]").hasSubstructMatch(parseSmiles("O"))   # charge 0: any
+    check parseSmiles("CC(=O)[O-]").hasSubstructMatch(parseSmiles("O")) # charge 0: any
 
   test "string convenience overloads":
     let m = parseSmiles("CCO")
@@ -191,21 +206,21 @@ suite "molecule queries":
 
 suite "stereo-aware matching":
   test "tetrahedral centres":
-    let r = "C[C@@H](N)C(=O)O"     # L-alanine
+    let r = "C[C@@H](N)C(=O)O" # L-alanine
     let s = "C[C@H](N)C(=O)O"
     check chiralHit(r, "C[C@@H](N)C(=O)O")
     check not chiralHit(r, "C[C@H](N)C(=O)O")
-    check chiralHit(r, "N[C@H](C)C(=O)O")     # same centre, other order
-    check chiralHit(r, "C[C@@H](N)C")         # partial
-    check chiralHit(r, "C[C@@](N)C=O")        # H not written: it goes last
+    check chiralHit(r, "N[C@H](C)C(=O)O") # same centre, other order
+    check chiralHit(r, "C[C@@H](N)C") # partial
+    check chiralHit(r, "C[C@@](N)C=O") # H not written: it goes last
     check not chiralHit(r, "C[C@](N)C=O")
-    check chiralHit(r, "C[C@](N)C")           # either C can be either C
+    check chiralHit(r, "C[C@](N)C") # either C can be either C
     check chiralHit(s, "C[C@H](N)C")
-    check hits(r, "C[C@H](N)C(=O)O")          # ignored without useChirality
-    check not chiralHit("CC(N)C(=O)O", "C[C@@H](N)C(=O)O")   # unspecified target
+    check hits(r, "C[C@H](N)C(=O)O") # ignored without useChirality
+    check not chiralHit("CC(N)C(=O)O", "C[C@@H](N)C(=O)O") # unspecified target
     check chiralHit("CC(N)C(=O)O", "CC(N)C(=O)O")
     check chiralHit("[H][C@](C)(N)C(=O)O", "[C@@H](C)(N)C(=O)O") ==
-          chiralHit(canonicalSmiles("[H][C@](C)(N)C(=O)O"), "[C@@H](C)(N)C(=O)O")
+      chiralHit(canonicalSmiles("[H][C@](C)(N)C(=O)O"), "[C@@H](C)(N)C(=O)O")
 
   test "molecule queries with stereo":
     let r = parseSmiles("C[C@@H](N)C(=O)O")
@@ -213,25 +228,25 @@ suite "stereo-aware matching":
     check not r.hasSubstructMatch(parseSmiles("N[C@@H](C)C(=O)O"), useChirality = true)
 
   test "double bonds":
-    let e = "C/C=C/C(=O)O"      # (E)-crotonic acid
+    let e = "C/C=C/C(=O)O" # (E)-crotonic acid
     check chiralHit(e, "C/C=C/C")
     check chiralHit(e, "C\\C=C\\C")
     check chiralHit(e, "C(\\C)=C/C")
     check not chiralHit(e, "C(/C)=C/C")
     check not chiralHit(e, "C/C=C\\C")
     check chiralHit("C/C=C\\C(=O)O", "C/C=C\\C")
-    check hits(e, "C/C=C\\C")              # ignored without useChirality
+    check hits(e, "C/C=C\\C") # ignored without useChirality
     check not chiralHit("CC=CC(=O)O", "C/C=C/C")
-    check chiralHit("F/C(Cl)=C/F", "Cl/C=C\\F")   # via the other substituent
+    check chiralHit("F/C(Cl)=C/F", "Cl/C=C\\F") # via the other substituent
 
   test "stereo inside recursive SMARTS":
     check chiralHit("C[C@H](F)Cl", "[$(C[C@H](F)Cl)]")
     check not chiralHit("C[C@H](F)Cl", "[$(C[C@@H](F)Cl)]")
-    check hits("C[C@H](F)Cl", "[$(C[C@@H](F)Cl)]")        # ignored without useChirality
+    check hits("C[C@H](F)Cl", "[$(C[C@@H](F)Cl)]") # ignored without useChirality
     # read as outside $(): the H of a first atom comes first (RDKit puts it
     # second inside recursive SMARTS)
     check chiralHit("C[C@H](F)Cl", "[$([C@@H](C)(F)Cl)]") ==
-          chiralHit("C[C@H](F)Cl", "[C@@H](C)(F)Cl")
+      chiralHit("C[C@H](F)Cl", "[C@@H](C)(F)Cl")
     check chiralHit("C/C=C/C", "[$(C/C=C/C)]")
     check not chiralHit("C/C=C/C", "[$(C/C=C\\C)]")
 
@@ -248,7 +263,8 @@ suite "prepared molecules":
 
   test "matches at given atoms":
     let p = prepare(parseSmiles("OCC(=O)N"))
-    check p.matchesAt(parseSmarts("[#6]=O"), [0, 1, 2, 3]) == @[false, false, true, false]
+    check p.matchesAt(parseSmarts("[#6]=O"), [0, 1, 2, 3]) ==
+      @[false, false, true, false]
     check p.matchesAt(parseSmarts("O"), [0, 3]) == @[true, true]
-    check p.matchesAt(parseSmarts("OCC=O"), [0, 3]) == @[true, false]   # first atom only
+    check p.matchesAt(parseSmarts("OCC=O"), [0, 3]) == @[true, false] # first atom only
     check p.matchesAt(Query(), [0]) == @[false]

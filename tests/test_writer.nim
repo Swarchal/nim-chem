@@ -22,7 +22,9 @@ suite "SMILES writer":
 
   test "many ring closures use %nn":
     # a ladder-like molecule with 12 simultaneously open rings
-    let m = parseSmiles("C12C3C4C5C6C7C8C9C%10C%11C%12CC%12C%11C%10C9C8C7C6C5C4C3C1C2", sanitize = false)
+    let m = parseSmiles(
+      "C12C3C4C5C6C7C8C9C%10C%11C%12CC%12C%11C%10C9C8C7C6C5C4C3C1C2", sanitize = false
+    )
     let out1 = m.toSmiles(canonical = false)
     check "%1" in out1
     check parseSmiles(out1, sanitize = false).molecularFormula == m.molecularFormula
@@ -39,7 +41,8 @@ suite "SMILES writer regressions":
     let back = parseSmiles(out1, sanitize = false)
     var nArom = 0
     for bd in back.bonds:
-      if bd.order == boAromatic: inc nArom
+      if bd.order == boAromatic:
+        inc nArom
     check nArom == 13
 
   test "sanitizing turns a non-ring aromatic bond into a single bond":

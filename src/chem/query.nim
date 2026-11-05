@@ -108,17 +108,26 @@ func elements*(e: Expr[AtomPrim]): set[uint8] =
   ## them unless it requires particular ones.
   case e.op
   of eoPrim:
-    result = case e.prim.kind
-             of apAtomicNum:
-               if e.prim.value in 0..255: {uint8(e.prim.value)} else: {}
-             of apRecursive: elements(e.prim.sub.atoms[0].expr)
-             else: {0'u8..255'u8}
-  of eoNot: result = {0'u8..255'u8}
+    result =
+      case e.prim.kind
+      of apAtomicNum:
+        if e.prim.value in 0 .. 255:
+          {uint8(e.prim.value)}
+        else:
+          {}
+      of apRecursive:
+        elements(e.prim.sub.atoms[0].expr)
+      else:
+        {0'u8 .. 255'u8}
+  of eoNot:
+    result = {0'u8 .. 255'u8}
   of eoAnd:
-    result = {0'u8..255'u8}
-    for a in e.args: result = result * elements(a)
+    result = {0'u8 .. 255'u8}
+    for a in e.args:
+      result = result * elements(a)
   of eoOr:
-    for a in e.args: result = result + elements(a)
+    for a in e.args:
+      result = result + elements(a)
 
 func needs*(q: Query): set[QueryNeeds] =
   ## The molecule properties `q`'s primitives use, including those of

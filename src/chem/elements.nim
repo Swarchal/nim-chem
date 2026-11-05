@@ -6,17 +6,16 @@
 import std/tables
 import ./isotopes
 
-type
-  ElementInfo* = object
-    symbol*: string
-    avgMass*: float      ## standard atomic weight
-    monoMass*: float     ## mass of the most abundant isotope
-    valences*: seq[int]  ## allowed valences (empty = no default valence model)
+type ElementInfo* = object
+  symbol*: string
+  avgMass*: float ## standard atomic weight
+  monoMass*: float ## mass of the most abundant isotope
+  valences*: seq[int] ## allowed valences (empty = no default valence model)
 
-func e(sym: string; avg, mono: float; vals: seq[int] = @[]): ElementInfo =
+func e(sym: string, avg, mono: float, vals: seq[int] = @[]): ElementInfo =
   ElementInfo(symbol: sym, avgMass: avg, monoMass: mono, valences: vals)
 
-const elementTable*: array[0..118, ElementInfo] = [
+const elementTable*: array[0 .. 118, ElementInfo] = [
   e("*", 0.0, 0.0),
   e("H", 1.008, 1.00782503207, @[1]),
   e("He", 4.002602, 4.00260325415, @[0]),
@@ -140,15 +139,21 @@ const elementTable*: array[0..118, ElementInfo] = [
 
 const maxAtomicNumber* = elementTable.high
 
-func isValidElement*(z: int): bool {.inline.} = z in 0..maxAtomicNumber
+func isValidElement*(z: int): bool {.inline.} =
+  z in 0 .. maxAtomicNumber
 
-func symbol*(z: int): string = elementTable[z].symbol
-func avgMass*(z: int): float = elementTable[z].avgMass
-func monoMass*(z: int): float = elementTable[z].monoMass
-func defaultValences*(z: int): seq[int] = elementTable[z].valences
+func symbol*(z: int): string =
+  elementTable[z].symbol
+func avgMass*(z: int): float =
+  elementTable[z].avgMass
+func monoMass*(z: int): float =
+  elementTable[z].monoMass
+func defaultValences*(z: int): seq[int] =
+  elementTable[z].valences
 
 func buildSymbolTable(): Table[string, int] =
-  for z in 0..maxAtomicNumber: result[elementTable[z].symbol] = z
+  for z in 0 .. maxAtomicNumber:
+    result[elementTable[z].symbol] = z
 
 const symbolTable = buildSymbolTable()
 
@@ -159,10 +164,14 @@ func atomicNumber*(sym: string): int =
 func isotopeMass*(z, massNumber: int): float =
   ## Exact mass of a specific isotope (3,111 known, see `isotopes`). Falls
   ## back to the mass number for isotopes not in the table.
-  if z notin isotopeMasses.low..isotopeMasses.high: return float(massNumber)
+  if z notin isotopeMasses.low .. isotopeMasses.high:
+    return float(massNumber)
   let (first, masses) = isotopeMasses[z]
   let k = massNumber - first
-  if k in 0..masses.high: masses[k] else: float(massNumber)
+  if k in 0 .. masses.high:
+    masses[k]
+  else:
+    float(massNumber)
 
 const
   organicSubset* = ["B", "C", "N", "O", "P", "S", "F", "Cl", "Br", "I"]
@@ -175,6 +184,9 @@ const
   organicAromaticZ = {5'u8, 6, 7, 8, 15, 16}
   aromaticZ = organicAromaticZ + {33'u8, 34, 52}
 
-func inOrganicSubset*(z: int): bool = uint8(z) in organicSubsetZ
-func canBeAromatic*(z: int): bool = uint8(z) in aromaticZ
-func inOrganicAromatic*(z: int): bool = uint8(z) in organicAromaticZ
+func inOrganicSubset*(z: int): bool =
+  uint8(z) in organicSubsetZ
+func canBeAromatic*(z: int): bool =
+  uint8(z) in aromaticZ
+func inOrganicAromatic*(z: int): bool =
+  uint8(z) in organicAromaticZ

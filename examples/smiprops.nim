@@ -9,7 +9,8 @@ import chem
 
 for line in stdin.lines:
   let smi = line.strip.split(maxsplit = 1)
-  if smi.len == 0: continue
+  if smi.len == 0:
+    continue
   try:
     let m = parseSmiles(smi[0])
     let nArom = m.atoms.countIt(it.aromatic)

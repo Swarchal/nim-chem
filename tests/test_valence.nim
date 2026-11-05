@@ -3,7 +3,8 @@ import chem
 
 proc hs(s: string): seq[int] =
   let m = parseSmiles(s)
-  for i in 0..<m.numAtoms: result.add totalHCount(m, i)
+  for i in 0 ..< m.numAtoms:
+    result.add totalHCount(m, i)
 
 suite "valence":
   test "organic subset":

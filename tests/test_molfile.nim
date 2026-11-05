@@ -4,7 +4,8 @@ import ./helpers
 
 const
   # RDKit's 2D and 3D molfiles for C[C@H](F)/C=C/Cl
-  wedged2D = "\n" & """
+  wedged2D =
+    "\n" & """
      RDKit          2D
 
   6  5  0  0  0  0  0  0  0  0999 V2000
@@ -21,7 +22,8 @@ const
   5  6  1  0
 M  END
 """
-  embedded3D = "\n" & """
+  embedded3D =
+    "\n" & """
      RDKit          3D
 
   6  5  0  0  0  0  0  0  0  0999 V2000
@@ -39,15 +41,19 @@ M  END
 M  END
 """
 
-proc molText(atoms: openArray[string]; bonds: openArray[string];
-           props: openArray[string] = []): string =
+proc molText(
+    atoms: openArray[string], bonds: openArray[string], props: openArray[string] = []
+): string =
   ## A V2000 block with zero coordinates.
-  result = "test\n  hand\n\n" &
-    align($atoms.len, 3) & align($bonds.len, 3) & "  0  0  0  0  0  0  0  0999 V2000\n"
+  result =
+    "test\n  hand\n\n" & align($atoms.len, 3) & align($bonds.len, 3) &
+    "  0  0  0  0  0  0  0  0999 V2000\n"
   for a in atoms:
     result &= "    0.0000    0.0000    0.0000 " & a & "\n"
-  for b in bonds: result &= b & "\n"
-  for p in props: result &= p & "\n"
+  for b in bonds:
+    result &= b & "\n"
+  for p in props:
+    result &= p & "\n"
   result &= "M  END\n"
 
 proc errorLine(s: string): int =
@@ -59,21 +65,26 @@ proc errorLine(s: string): int =
 
 suite "molfile reading":
   test "atoms, bonds and hydrogens":
-    let m = parseMolBlock(molText(["C   0  0", "C   0  0", "O   0  0"],
-                                ["  1  2  1  0", "  2  3  1  0"]))
+    let m = parseMolBlock(
+      molText(["C   0  0", "C   0  0", "O   0  0"], ["  1  2  1  0", "  2  3  1  0"])
+    )
     check m.toSmiles == "CCO"
-    check m.coords.len == 0   # all zero: no coordinates
+    check m.coords.len == 0 # all zero: no coordinates
     check m.molecularFormula == "C2H6O"
 
   test "charges, isotopes and atom maps":
     # atom-block charge codes (3 = +1, 5 = -1)
-    check parseMolBlock(molText(["N   0  3", "O   0  5"], ["  1  2  1  0"])).toSmiles == "[NH3+][O-]"
+    check parseMolBlock(molText(["N   0  3", "O   0  5"], ["  1  2  1  0"])).toSmiles ==
+      "[NH3+][O-]"
     # M  CHG replaces all atom-block charges
-    check parseMolBlock(molText(["N   0  3", "O   0  5"], ["  1  2  1  0"],
-                              ["M  CHG  1   1   1"])).toSmiles == "[NH3+]O"
-    check parseMolBlock(molText(["C   0  0", "C   0  0"], ["  1  2  1  0"],
-                              ["M  ISO  1   2  13"])).toSmiles == "C[13CH3]"
-    check parseMolBlock(molText(["D   0  0", "C   0  0"], ["  1  2  1  0"])).toSmiles == "[2H]C"
+    check parseMolBlock(
+      molText(["N   0  3", "O   0  5"], ["  1  2  1  0"], ["M  CHG  1   1   1"])
+    ).toSmiles == "[NH3+]O"
+    check parseMolBlock(
+      molText(["C   0  0", "C   0  0"], ["  1  2  1  0"], ["M  ISO  1   2  13"])
+    ).toSmiles == "C[13CH3]"
+    check parseMolBlock(molText(["D   0  0", "C   0  0"], ["  1  2  1  0"])).toSmiles ==
+      "[2H]C"
     let mapped = molText(["C   0  0  0  0  0  0  0  0  0  7  0  0"], [])
     check parseMolBlock(mapped).atoms[0].atomMap == 7
 
@@ -81,12 +92,14 @@ suite "molfile reading":
     # valence field 15 = no hydrogens
     check parseMolBlock(molText(["C   0  0  0  0  0 15"], [])).molecularFormula == "C"
     check parseMolBlock(molText(["C   0  0  0  0  0  2"], [])).molecularFormula == "CH2"
-    check parseMolBlock(molText(["C   0  0", "C   0  0"], ["  1  2  1  0"],
-                              ["M  RAD  1   1   2"])).molecularFormula == "C2H5"
+    check parseMolBlock(
+      molText(["C   0  0", "C   0  0"], ["  1  2  1  0"], ["M  RAD  1   1   2"])
+    ).molecularFormula == "C2H5"
 
   test "aromatic bonds":
     var bonds: seq[string]
-    for i in 1..6: bonds.add align($i, 3) & align($(i mod 6 + 1), 3) & "  4  0"
+    for i in 1 .. 6:
+      bonds.add align($i, 3) & align($(i mod 6 + 1), 3) & "  4  0"
     check parseMolBlock(molText(newSeqWith(6, "C   0  0"), bonds)).toSmiles == "c1ccccc1"
 
   test "stereo from 2D wedges and 3D coordinates":
@@ -96,21 +109,35 @@ suite "molfile reading":
       check m.coords.len == 6
 
   test "stereo from atom parities when there are no coordinates":
-    let r = parseMolBlock(molText(["C   0  0", "C   0  0  1", "F   0  0", "Cl  0  0"],
-                                ["  1  2  1  0", "  2  3  1  0", "  2  4  1  0"]))
-    let s = parseMolBlock(molText(["C   0  0", "C   0  0  2", "F   0  0", "Cl  0  0"],
-                                ["  1  2  1  0", "  2  3  1  0", "  2  4  1  0"]))
+    let r = parseMolBlock(
+      molText(
+        ["C   0  0", "C   0  0  1", "F   0  0", "Cl  0  0"],
+        ["  1  2  1  0", "  2  3  1  0", "  2  4  1  0"],
+      )
+    )
+    let s = parseMolBlock(
+      molText(
+        ["C   0  0", "C   0  0  2", "F   0  0", "Cl  0  0"],
+        ["  1  2  1  0", "  2  3  1  0", "  2  4  1  0"],
+      )
+    )
     check r.atoms[1].chiral != ctNone
     check r.toSmiles != s.toSmiles
-    check r.toSmiles == canonicalSmiles(s.toSmiles.replace("@@", "!").replace("@", "@@").replace("!", "@"))
+    check r.toSmiles ==
+      canonicalSmiles(
+        s.toSmiles.replace("@@", "!").replace("@", "@@").replace("!", "@")
+      )
 
   test "either and unmarked stereo":
     # bond stereo 3 on the double bond: no E/Z; no wedge: no chirality
-    let s = wedged2D.replace("  4  5  2  0", "  4  5  2  3").replace("  2  1  1  1", "  2  1  1  0")
+    let s = wedged2D.replace("  4  5  2  0", "  4  5  2  3").replace(
+        "  2  1  1  1", "  2  1  1  0"
+      )
     check parseMolBlock(s).toSmiles == "CC(F)C=CCl"
 
   test "V3000":
-    let s = "\n" & """
+    let s =
+      "\n" & """
   test
 
   0  0  0     0  0            999 V3000
@@ -140,14 +167,23 @@ M  END
 
   test "property lines":
     # an atom value ("V  ") is one line: the CHG line after it still counts
-    check parseMolBlock(molText(["C   0  0", "O   0  0"], ["  1  2  1  0"],
-                                ["V    1 a value", "M  CHG  1   2  -1"])).toSmiles == "C[O-]"
+    check parseMolBlock(
+      molText(
+        ["C   0  0", "O   0  0"],
+        ["  1  2  1  0"],
+        ["V    1 a value", "M  CHG  1   2  -1"],
+      )
+    ).toSmiles == "C[O-]"
     # an alias ("A  ") has its text on the next line
-    check parseMolBlock(molText(["C   0  0", "O   0  0"], ["  1  2  1  0"],
-                                ["A    1", "M  CHG  1   2  -1"])).toSmiles == "CO"
+    check parseMolBlock(
+      molText(
+        ["C   0  0", "O   0  0"], ["  1  2  1  0"], ["A    1", "M  CHG  1   2  -1"]
+      )
+    ).toSmiles == "CO"
     # M  ISO replaces atom-block isotopes, but not D/T symbols
-    check parseMolBlock(molText(["D   0  0", "C   0  0"], ["  1  2  1  0"],
-                                ["M  ISO  1   2  13"])).toSmiles == "[2H][13CH3]"
+    check parseMolBlock(
+      molText(["D   0  0", "C   0  0"], ["  1  2  1  0"], ["M  ISO  1   2  13"])
+    ).toSmiles == "[2H][13CH3]"
 
   test "query atoms are rejected":
     check errorLine(molText(["A   0  0"], [])) == 5
@@ -162,9 +198,11 @@ M  END
 
 suite "molfile writing":
   test "round trips":
-    for smi in ["CCO", "c1ccccc1O", "C[N+](C)(C)C.[Cl-]", "[13CH4]", "c1cc[nH]c1",
-                "C[C@H](N)C(=O)O", "[CH3]", "[Na+].[O-]C(=O)C", "O=S1(=O)CCCC1",
-                "C[S@](=O)c1ccccc1", "[2H]C([2H])([2H])O", "[CH2:3]=O"]:
+    for smi in [
+      "CCO", "c1ccccc1O", "C[N+](C)(C)C.[Cl-]", "[13CH4]", "c1cc[nH]c1",
+      "C[C@H](N)C(=O)O", "[CH3]", "[Na+].[O-]C(=O)C", "O=S1(=O)CCCC1",
+      "C[S@](=O)c1ccccc1", "[2H]C([2H])([2H])O", "[CH2:3]=O",
+    ]:
       let m = parseSmiles(smi)
       checkpoint smi
       check parseMolBlock(m.toMolBlock).toSmiles == m.toSmiles
@@ -189,17 +227,20 @@ suite "molfile writing":
         check back.toSmiles == m.toSmiles
         check back.coords.len == 6
     # an unspecified double bond drawn in 2D is written as "either"
-    let plain = parseMolBlock(wedged2D.replace("  2  1  1  1", "  2  1  1  0")
-                                      .replace("  4  5  2  0", "  4  5  2  3"))
+    let plain = parseMolBlock(
+      wedged2D.replace("  2  1  1  1", "  2  1  1  0").replace(
+        "  4  5  2  0", "  4  5  2  3"
+      )
+    )
     check "  4  5  2  3" in plain.toMolBlock
     check parseMolBlock(plain.toMolBlock).toSmiles == "CC(F)C=CCl"
 
   test "ring double bonds aren't marked as either":
     var benzene = parseSmiles("c1ccccc1")
-    for k in 0..5:
+    for k in 0 .. 5:
       let t = float(k) * 1.0471975512
       benzene.coords.add (cos(t), sin(t), 0.0)
-    for line in benzene.toMolBlock.splitLines[10..15]:
+    for line in benzene.toMolBlock.splitLines[10 .. 15]:
       check line.endsWith("  0")
 
   test "coordinates follow renumbering":
@@ -220,18 +261,20 @@ suite "molfile writing":
     check s.splitLines[0] == "methane"
     check "V2000" in s.splitLines[3]
     # dimension code in columns 21-22
-    check parseMolBlock(wedged2D).toMolBlock.splitLines[1][20..21] == "2D"
-    check parseMolBlock(embedded3D).toMolBlock.splitLines[1][20..21] == "3D"
+    check parseMolBlock(wedged2D).toMolBlock.splitLines[1][20 .. 21] == "2D"
+    check parseMolBlock(embedded3D).toMolBlock.splitLines[1][20 .. 21] == "3D"
 
   test "a chiral atom that can't be drawn raises":
     var m = parseSmiles("C[C@H](F)Cl")
-    m.coords = newSeqWith(4, (1.0, 1.0, 0.0))   # all atoms on one point
-    expect ChemError: discard m.toMolBlock
+    m.coords = newSeqWith(4, (1.0, 1.0, 0.0)) # all atoms on one point
+    expect ChemError:
+      discard m.toMolBlock
     m.coords = @[]
-    check m.toMolBlock.len > 0                  # without coordinates: parity
+    check m.toMolBlock.len > 0 # without coordinates: parity
 
 suite "SD files":
-  const twoRecords = molText(["C   0  0"], []).replace("test", "methane") &
+  const twoRecords =
+    molText(["C   0  0"], []).replace("test", "methane") &
     "> <mw>\n16.04\n\n> <notes> (1)\nline one\nline two\n\n$$$$\n" &
     molText(["Xx  0  0"], []).replace("test", "bad") & "> <mw>\n0\n\n$$$$\n"
 
@@ -262,12 +305,14 @@ suite "SD files":
     let m = parseSmiles("C")
     check toSeq(sdfRecords(m.toSdf(props = {"a": "x\ny\n"})))[0].props["a"] == "x\ny"
     for props in [@{"a": "x\n\ny"}, @{"a": "x\n$$$$"}, @{"a>b": "x"}, @{"a\nb": "x"}]:
-      expect ValueError: discard m.toSdf(props = props)
+      expect ValueError:
+        discard m.toSdf(props = props)
 
   test "files, Windows line endings and a missing final $$$$":
     let path = getTempDir() / "chem_test.sdf"
     writeFile(path, twoRecords.replace("\n", "\r\n") & molText(["N   0  0"], []))
-    defer: removeFile(path)
+    defer:
+      removeFile(path)
     let recs = toSeq(readSdf(path))
     check recs.len == 3
     check recs[0].props["notes"] == "line one\nline two"

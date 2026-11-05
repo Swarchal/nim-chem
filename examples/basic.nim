@@ -1,7 +1,8 @@
 import chem
 
 let aspirin = parseSmiles("O=C(O)c1ccccc1OC(C)=O")
-echo "atoms:     ", aspirin.numAtoms, " heavy, ", aspirin.numAtoms(includeH = true), " total"
+echo "atoms:     ",
+  aspirin.numAtoms, " heavy, ", aspirin.numAtoms(includeH = true), " total"
 echo "formula:   ", aspirin.molecularFormula
 echo "MW:        ", aspirin.molWeight
 echo "exact:     ", aspirin.exactMass

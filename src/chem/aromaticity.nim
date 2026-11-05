@@ -40,7 +40,7 @@ func electronegativity(z: int): float =
   of 53: 2.66
   else: 0.0
 
-proc freezeHydrogens(m: var Mol; i: int) =
+proc freezeHydrogens(m: var Mol, i: int) =
   if not m.atoms[i].noImplicit:
     m.atoms[i].explicitH = totalHCount(m, i)
     m.atoms[i].noImplicit = true
@@ -50,7 +50,7 @@ proc maxMatching(g: seq[seq[int]]): seq[int] =
   ## Returns the partner of each vertex, or -1.
   let n = g.len
   var match = newSeqWith(n, -1)
-  for v in 0..<n:   # greedy start
+  for v in 0 ..< n: # greedy start
     if match[v] == -1:
       for u in g[v]:
         if match[u] == -1:
@@ -68,12 +68,14 @@ proc maxMatching(g: seq[seq[int]]): seq[int] =
     while true:
       a = base[a]
       seen[a] = true
-      if match[a] == -1: break
+      if match[a] == -1:
+        break
       a = parent[match[a]]
     var b = b0
     while true:
       b = base[b]
-      if seen[b]: return b
+      if seen[b]:
+        return b
       b = parent[match[b]]
 
   proc markPath(v0, b, child0: int) =
@@ -87,7 +89,7 @@ proc maxMatching(g: seq[seq[int]]): seq[int] =
       v = parent[match[v]]
 
   proc findPath(root: int): int =
-    for i in 0..<n:
+    for i in 0 ..< n:
       used[i] = false
       parent[i] = -1
       base[i] = i
@@ -98,13 +100,15 @@ proc maxMatching(g: seq[seq[int]]): seq[int] =
       let v = queue[head]
       inc head
       for to in g[v]:
-        if base[v] == base[to] or match[v] == to: continue
+        if base[v] == base[to] or match[v] == to:
+          continue
         if to == root or (match[to] != -1 and parent[match[to]] != -1):
           let cur = lca(v, to)
-          for i in 0..<n: blossom[i] = false
+          for i in 0 ..< n:
+            blossom[i] = false
           markPath(v, cur, to)
           markPath(to, cur, v)
-          for i in 0..<n:
+          for i in 0 ..< n:
             if blossom[base[i]]:
               base[i] = cur
               if not used[i]:
@@ -112,12 +116,13 @@ proc maxMatching(g: seq[seq[int]]): seq[int] =
                 queue.add i
         elif parent[to] == -1:
           parent[to] = v
-          if match[to] == -1: return to
+          if match[to] == -1:
+            return to
           used[match[to]] = true
           queue.add match[to]
     -1
 
-  for v in 0..<n:
+  for v in 0 ..< n:
     if match[v] == -1:
       var u = findPath(v)
       while u != -1:
@@ -133,22 +138,26 @@ proc kekulize*(m: var Mol) =
   ## aromatic atom that needs one gets exactly one double bond, then clears
   ## all aromatic flags. Raises `KekulizeError` if that is impossible
   ## (e.g. `c1cccc1`, or pyrrole written without its [nH]).
-  for i in 0..<m.numAtoms:
+  for i in 0 ..< m.numAtoms:
     var touches = m.atoms[i].aromatic
     for (_, bi) in m.adj[i]:
-      if m.bonds[bi].order == boAromatic: touches = true
-    if touches: freezeHydrogens(m, i)
+      if m.bonds[bi].order == boAromatic:
+        touches = true
+    if touches:
+      freezeHydrogens(m, i)
   # An atom needs a double bond if its valence (aromatic bonds counted as 1)
   # is below its lowest allowed valence.
   var local = newSeqWith(m.numAtoms, -1)
   var candidates: seq[int]
-  for i in 0..<m.numAtoms:
+  for i in 0 ..< m.numAtoms:
     var nArom = 0
     var v = m.atoms[i].explicitH
     for (_, bi) in m.adj[i]:
-      if m.bonds[bi].order == boAromatic: inc nArom
+      if m.bonds[bi].order == boAromatic:
+        inc nArom
       v += bondValence(m.bonds[bi].order)
-    if nArom == 0: continue
+    if nArom == 0:
+      continue
     let vals = allowedValences(m.atoms[i])
     if vals.len > 0 and v < vals[0]:
       local[i] = candidates.len
@@ -158,71 +167,91 @@ proc kekulize*(m: var Mol) =
     if bd.order == boAromatic and local[bd.a] >= 0 and local[bd.b] >= 0:
       g[local[bd.a]].add local[bd.b]
       g[local[bd.b]].add local[bd.a]
-  for nbrs in g.mitems: nbrs.sort()   # result depends only on atom order
+  for nbrs in g.mitems:
+    nbrs.sort() # result depends only on atom order
   let match = maxMatching(g)
   var unmatched: seq[int]
   for li, partner in match:
-    if partner < 0: unmatched.add candidates[li]
+    if partner < 0:
+      unmatched.add candidates[li]
   if unmatched.len > 0:
-    raise newException(KekulizeError,
-      "can't kekulize: no double bond possible for atom(s) " & $unmatched)
+    raise newException(
+      KekulizeError, "can't kekulize: no double bond possible for atom(s) " & $unmatched
+    )
   for bd in m.bonds.mitems:
-    if bd.order != boAromatic: continue
+    if bd.order != boAromatic:
+      continue
     let la = local[bd.a]
     bd.order = if la >= 0 and match[la] == local[bd.b]: boDouble else: boSingle
-  for a in m.atoms.mitems: a.aromatic = false
+  for a in m.atoms.mitems:
+    a.aromatic = false
 
-func piElectrons(m: Mol; i: int; inRing: seq[bool]): int =
+func piElectrons(m: Mol, i: int, inRing: seq[bool]): int =
   ## Electrons atom `i` donates to a ring pi system in a Kekulé structure,
   ## or -1 if it cannot be part of an aromatic ring.
   let a = m.atoms[i]
-  if a.element == 0: return -1
+  if a.element == 0:
+    return -1
   var ringDouble, exoDouble = 0
   var exoPartner = -1
   for (nb, bi) in m.adj[i]:
     case m.bonds[bi].order
     of boDouble:
-      if inRing[bi]: inc ringDouble
+      if inRing[bi]:
+        inc ringDouble
       else:
         inc exoDouble
         exoPartner = nb
-    of boSingle: discard
-    else: return -1   # triple/quadruple/aromatic/unknown
+    of boSingle:
+      discard
+    else:
+      return -1 # triple/quadruple/aromatic/unknown
   let h = totalHCount(m, i)
-  if m.degree(i) + h > 3: return -1   # not sp2
-  if ringDouble == 1 and exoDouble == 0: return 1
-  if ringDouble > 0 or exoDouble > 1: return -1
+  if m.degree(i) + h > 3:
+    return -1 # not sp2
+  if ringDouble == 1 and exoDouble == 0:
+    return 1
+  if ringDouble > 0 or exoDouble > 1:
+    return -1
   if exoDouble == 1:
     # exocyclic C=O, C=N, [N+]=O ...: the double bond's electrons are not
     # shared with the ring (RDKit applies this to C and N, not S or P)
-    return (if a.element in [6, 7] and electronegativity(m.atoms[exoPartner].element) >
-               electronegativity(a.element): 0 else: -1)
+    return (
+      if a.element in [6, 7] and
+          electronegativity(m.atoms[exoPartner].element) > electronegativity(a.element):
+      0
+      else: -1
+    )
   let total = explicitValence(m, i) + h
   let (z, q) = (a.element, a.charge)
   if (z in [7, 15, 33] and q == 0 and total == 3) or
-     (z in [8, 16, 34, 52] and q == 0 and total == 2) or
-     (z in [8, 16] and q == 1 and total == 3) or
-     (z == 6 and q == -1 and total == 3) or
-     (z == 7 and q == -1 and total == 2):
-    return 2   # lone pair
+      (z in [8, 16, 34, 52] and q == 0 and total == 2) or
+      (z in [8, 16] and q == 1 and total == 3) or (z == 6 and q == -1 and total == 3) or
+      (z == 7 and q == -1 and total == 2):
+    return 2 # lone pair
   if z == 6 and q == 1 and total == 3:
-    return 0   # carbocation: empty p orbital (neutral boron is not
-               # treated as aromatic, matching RDKit)
+    return
+      0
+        # carbocation: empty p orbital (neutral boron is not
+        # treated as aromatic, matching RDKit)
   -1
 
-proc connectedRingSubsets(adj: seq[seq[int]]; members: seq[int];
-                          maxSize: int): seq[seq[int]] =
+proc connectedRingSubsets(
+    adj: seq[seq[int]], members: seq[int], maxSize: int
+): seq[seq[int]] =
   ## All connected subsets (as sorted ring indices) of size 2..maxSize of a
   ## fused ring system.
   var seen = initHashSet[seq[int]]()
   var frontier: seq[seq[int]]
-  for r in members: frontier.add @[r]
-  for size in 2..maxSize:
+  for r in members:
+    frontier.add @[r]
+  for size in 2 .. maxSize:
     var next: seq[seq[int]]
     for sub in frontier:
       for r in sub:
         for nb in adj[r]:
-          if nb in sub: continue
+          if nb in sub:
+            continue
           var grown = sub & nb
           grown.sort()
           if grown notin seen:
@@ -230,7 +259,8 @@ proc connectedRingSubsets(adj: seq[seq[int]]; members: seq[int];
             next.add grown
     result.add next
     frontier = next
-    if frontier.len == 0: break
+    if frontier.len == 0:
+      break
 
 proc setAromaticity*(m: var Mol) =
   ## Marks atoms and bonds of aromatic rings (Hückel 4n+2 over single SSSR
@@ -240,51 +270,60 @@ proc setAromaticity*(m: var Mol) =
   ## aromatic flags are replaced.
   kekulize(m)
   let rings = sssr(m)
-  if rings.len == 0: return
+  if rings.len == 0:
+    return
   let inRing = ringBonds(m)
   var electrons = newSeq[int](m.numAtoms)
-  for i in 0..<m.numAtoms: electrons[i] = piElectrons(m, i, inRing)
+  for i in 0 ..< m.numAtoms:
+    electrons[i] = piElectrons(m, i, inRing)
   # ring bonds, and fusion (shared bond) between rings
   let ringBondList = rings.mapIt(ringBondIndices(m, it))
   var fused = newSeq[seq[int]](rings.len)
-  for r1 in 0..<rings.len:
-    for r2 in r1+1..<rings.len:
+  for r1 in 0 ..< rings.len:
+    for r2 in r1 + 1 ..< rings.len:
       if ringBondList[r1].anyIt(it in ringBondList[r2]):
         fused[r1].add r2
         fused[r2].add r1
 
   var aromaticRing = newSeq[bool](rings.len)
   var aromaticBond = newSeq[bool](m.numBonds)
-  let bondAtoms = m.bonds.mapIt((it.a, it.b))   # closures can't capture `var m`
+  let bondAtoms = m.bonds.mapIt((it.a, it.b)) # closures can't capture `var m`
   proc perimeter(subset: seq[int]): seq[int] =
     ## Bonds that belong to just one ring of the combination.
     var bondUse = initCountTable[int]()
     for r in subset:
-      for bi in ringBondList[r]: bondUse.inc bi
+      for bi in ringBondList[r]:
+        bondUse.inc bi
     for bi, uses in bondUse:
-      if uses == 1: result.add bi
+      if uses == 1:
+        result.add bi
+
   proc check(subset: seq[int]): bool =
     ## Hückel test. For fused combinations only perimeter atoms count
     ## (so e.g. pyrene's two central atoms are excluded).
     for r in subset:
       for a in rings[r]:
-        if electrons[a] < 0: return false
+        if electrons[a] < 0:
+          return false
     var atoms = initHashSet[int]()
     for bi in perimeter(subset):
       atoms.incl bondAtoms[bi][0]
       atoms.incl bondAtoms[bi][1]
     var total = 0
-    for a in atoms: total += electrons[a]
+    for a in atoms:
+      total += electrons[a]
     total mod 4 == 2
 
-  for r in 0..<rings.len:
+  for r in 0 ..< rings.len:
     if check(@[r]):
       aromaticRing[r] = true
-      for bi in ringBondList[r]: aromaticBond[bi] = true
+      for bi in ringBondList[r]:
+        aromaticBond[bi] = true
   # fused systems: connected components of the `fused` graph
   var system = newSeqWith(rings.len, -1)
-  for start in 0..<rings.len:
-    if system[start] >= 0 or fused[start].len == 0: continue
+  for start in 0 ..< rings.len:
+    if system[start] >= 0 or fused[start].len == 0:
+      continue
     var members = @[start]
     system[start] = start
     var k = 0
@@ -296,23 +335,32 @@ proc setAromaticity*(m: var Mol) =
       inc k
     # only rings whose atoms can all take part are worth combining
     let usable = members.filterIt(rings[it].allIt(electrons[it] >= 0))
-    if usable.len < 2: continue
+    if usable.len < 2:
+      continue
     var usableAdj = newSeq[seq[int]](rings.len)
     for r in usable:
       usableAdj[r] = fused[r].filterIt(it in usable)
-    for subset in connectedRingSubsets(usableAdj, usable,
-                                       min(maxFusedRings, usable.len)):
-      if subset.allIt(aromaticRing[it]): continue
+    for subset in connectedRingSubsets(
+      usableAdj, usable, min(maxFusedRings, usable.len)
+    ):
+      if subset.allIt(aromaticRing[it]):
+        continue
       if check(subset):
         # as in RDKit, only the perimeter bonds become aromatic: azulene's
         # shared bond stays single (its rings aren't aromatic on their own)
-        for r in subset: aromaticRing[r] = true
-        for bi in perimeter(subset): aromaticBond[bi] = true
+        for r in subset:
+          aromaticRing[r] = true
+        for bi in perimeter(subset):
+          aromaticBond[bi] = true
 
   var aromAtoms: seq[int]
   for r, ring in rings:
-    if aromaticRing[r]: aromAtoms.add ring
-  for a in aromAtoms: freezeHydrogens(m, a)   # before bond orders change
-  for a in aromAtoms: m.atoms[a].aromatic = true
-  for bi in 0..<m.numBonds:
-    if aromaticBond[bi]: m.bonds[bi].order = boAromatic
+    if aromaticRing[r]:
+      aromAtoms.add ring
+  for a in aromAtoms:
+    freezeHydrogens(m, a) # before bond orders change
+  for a in aromAtoms:
+    m.atoms[a].aromatic = true
+  for bi in 0 ..< m.numBonds:
+    if aromaticBond[bi]:
+      m.bonds[bi].order = boAromatic

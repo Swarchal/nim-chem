@@ -7,14 +7,15 @@ import std/[bitops, tables, math]
 
 type BitVect* = object
   size: int
-  ones: int             ## number of set bits, kept up to date
+  ones: int ## number of set bits, kept up to date
   words: seq[uint64]
 
 when defined(c) or defined(cpp):
   # the popcount instruction if the build allows it (`--passC:-mpopcnt`,
   # `-march=native`), else a branch-free fallback, which is faster than
   # the library call `countSetBits` makes then
-  {.emit: """/*INCLUDESECTION*/
+  {.
+    emit: """/*INCLUDESECTION*/
 static inline int chemPopcount64(unsigned long long x) {
 #if defined(__POPCNT__) || defined(__aarch64__)
   return __builtin_popcountll(x);
@@ -24,32 +25,37 @@ static inline int chemPopcount64(unsigned long long x) {
   x = (x + (x >> 4)) & 0x0f0f0f0f0f0f0f0fULL;
   return (int)((x * 0x0101010101010101ULL) >> 56);
 #endif
-}""".}
+}"""
+  .}
   func popcount(x: uint64): int {.importc: "chemPopcount64", nodecl.}
 else:
-  func popcount(x: uint64): int {.inline.} = countSetBits(x)
+  func popcount(x: uint64): int {.inline.} =
+    countSetBits(x)
 
 func initBitVect*(size: int): BitVect =
   ## An all-zero vector of `size` bits.
-  if size < 0: raise newException(ValueError, "negative bit vector size")
+  if size < 0:
+    raise newException(ValueError, "negative bit vector size")
   BitVect(size: size, words: newSeq[uint64]((size + 63) div 64))
 
-func len*(v: BitVect): int {.inline.} = v.size
+func len*(v: BitVect): int {.inline.} =
+  v.size
 
 func count*(v: BitVect): int {.inline.} =
   ## Number of set bits.
   v.ones
 
-func checkIndex(v: BitVect; i: int) {.inline.} =
-  if i notin 0..<v.size:
+func checkIndex(v: BitVect, i: int) {.inline.} =
+  if i notin 0 ..< v.size:
     raise newException(IndexDefect, "bit " & $i & " out of range 0.." & $(v.size - 1))
 
-func `[]`*(v: BitVect; i: int): bool =
+func `[]`*(v: BitVect, i: int): bool =
   v.checkIndex(i)
   v.words[i shr 6].testBit(i and 63)
 
-func `[]=`*(v: var BitVect; i: int; on: bool) =
-  if v[i] == on: return
+func `[]=`*(v: var BitVect, i: int, on: bool) =
+  if v[i] == on:
+    return
   if on:
     v.words[i shr 6].setBit(i and 63)
     inc v.ones
@@ -57,7 +63,8 @@ func `[]=`*(v: var BitVect; i: int; on: bool) =
     v.words[i shr 6].clearBit(i and 63)
     dec v.ones
 
-func incl*(v: var BitVect; i: int) {.inline.} = v[i] = true
+func incl*(v: var BitVect, i: int) {.inline.} =
+  v[i] = true
 
 iterator onBits*(v: BitVect): int =
   ## Indices of the set bits, in increasing order.
@@ -69,13 +76,15 @@ iterator onBits*(v: BitVect): int =
 
 func checkSizes(a, b: BitVect) =
   if a.size != b.size:
-    raise newException(ValueError, "bit vectors differ in length: " & $a.size & " and " & $b.size)
+    raise newException(
+      ValueError, "bit vectors differ in length: " & $a.size & " and " & $b.size
+    )
 
 template wordwise(name, op: untyped) =
   func name*(a, b: BitVect): BitVect =
     checkSizes(a, b)
     result = initBitVect(a.size)
-    for k in 0..<a.words.len:
+    for k in 0 ..< a.words.len:
       result.words[k] = op(a.words[k], b.words[k])
       result.ones += popcount(result.words[k])
 
@@ -86,25 +95,33 @@ func commonCount(a, b: BitVect): int =
   ## |a ∧ b|: the one pass over the words each similarity needs.
   checkSizes(a, b)
   {.push boundChecks: off.}
-  for k in 0..<a.words.len: result += popcount(a.words[k] and b.words[k])
+  for k in 0 ..< a.words.len:
+    result += popcount(a.words[k] and b.words[k])
   {.pop.}
 
 func `$`*(v: BitVect): string =
   ## The bits as '0'/'1' characters, bit 0 first (as RDKit's `ToBitString`).
   result = newString(v.size)
-  for i in 0..<v.size: result[i] = if v[i]: '1' else: '0'
+  for i in 0 ..< v.size:
+    result[i] = if v[i]: '1' else: '0'
 
 func parseBitVect*(s: string): BitVect =
   ## The inverse of `$`.
   result = initBitVect(s.len)
   for i, c in s:
     case c
-    of '1': result.incl i
-    of '0': discard
-    else: raise newException(ValueError, "not a bit string: " & s)
+    of '1':
+      result.incl i
+    of '0':
+      discard
+    else:
+      raise newException(ValueError, "not a bit string: " & s)
 
 func ratio(num, den: float): float {.inline.} =
-  if den == 0: 0.0 else: num / den
+  if den == 0:
+    0.0
+  else:
+    num / den
 
 func tanimoto*(a, b: BitVect): float =
   ## |a ∧ b| / |a ∨ b| (Jaccard).
@@ -119,7 +136,7 @@ func cosine*(a, b: BitVect): float =
   ## |a ∧ b| / sqrt(|a| |b|).
   ratio(commonCount(a, b).float, sqrt((a.count * b.count).float))
 
-func tversky*(a, b: BitVect; alpha, beta: float): float =
+func tversky*(a, b: BitVect, alpha, beta: float): float =
   ## |a ∧ b| / (alpha |a \ b| + beta |b \ a| + |a ∧ b|): with alpha =
   ## beta = 1 Tanimoto, with 0.5 Dice; alpha = 1, beta = 0 measures how
   ## much of `a` is in `b`.
@@ -132,7 +149,8 @@ func countSums(a, b: CountTable[uint32]): (int, int, int) =
   for k, n in a:
     sa += n
     common += min(n, b.getOrDefault(k))
-  for n in b.values: sb += n
+  for n in b.values:
+    sb += n
   (sa, sb, common)
 
 func tanimoto*(a, b: CountTable[uint32]): float =
@@ -145,7 +163,10 @@ func dice*(a, b: CountTable[uint32]): float =
   let (sa, sb, common) = countSums(a, b)
   ratio(2.0 * common.float, (sa + sb).float)
 
-func bulkTanimoto*[T: BitVect | CountTable[uint32]](query: T; fps: openArray[T]): seq[float] =
+func bulkTanimoto*[T: BitVect | CountTable[uint32]](
+    query: T, fps: openArray[T]
+): seq[float] =
   ## Tanimoto similarity of `query` to each of `fps`.
   result = newSeqOfCap[float](fps.len)
-  for fp in fps: result.add tanimoto(query, fp)
+  for fp in fps:
+    result.add tanimoto(query, fp)
