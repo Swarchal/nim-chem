@@ -63,12 +63,12 @@ iterator readSdf*(path: string; sanitize = true; removeHs = true): SdfRecord =
   for r in sdfRecords(s, sanitize, removeHs): yield r
 
 proc toSdf*(m: Mol; name = ""; props: openArray[(string, string)] = [];
-            v3000 = false): string =
+            v3000 = false; layout = true): string =
   ## One SD record: the molfile, data items and the `$$$$` line. Raises
   ## `ValueError` for a data item the format can't hold: a name with `<`,
   ## `>` or a line break, or a value with an empty line or a line starting
   ## with `$$$$` (trailing line breaks are dropped).
-  result = toMolBlock(m, name, v3000)
+  result = toMolBlock(m, name, v3000, layout = layout)
   for (key, value) in props:
     if key.contains({'<', '>', '\n', '\r'}):
       raise newException(ValueError, "SD data item name can't be written: " & key)

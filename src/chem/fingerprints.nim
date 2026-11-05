@@ -12,7 +12,7 @@
 ##
 ## Chirality is not included (RDKit's `useChirality` uses CIP labels).
 
-import std/[tables, sets, algorithm, sequtils, bitops]
+import std/[tables, sets, algorithm, bitops]
 import ./[mol, elements, valence, rings, query, smarts, substruct, bitvect, rdkitdata]
 
 type MorganEnv* = tuple

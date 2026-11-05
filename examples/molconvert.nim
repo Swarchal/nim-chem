@@ -3,7 +3,7 @@
 ##   molconvert sdf2smi   SD file on stdin -> "SMILES<tab>name" lines
 ##                        ("ERROR<tab>message" if a record can't be read)
 ##   molconvert sdf2sdf   SD file on stdin -> SD file, rewritten
-##   molconvert smi2sdf   SMILES lines on stdin -> SD file (no coordinates)
+##   molconvert smi2sdf   SMILES lines on stdin -> SD file (with a 2D layout)
 ##   molconvert smi2smi   SMILES lines on stdin -> SMILES lines
 ## Options: --v3000 writes V3000 molfiles; --addhs makes hydrogens explicit
 ## atoms before writing. Data items are kept by sdf2sdf; sdf2smi appends

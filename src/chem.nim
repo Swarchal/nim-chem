@@ -10,13 +10,14 @@ import
   chem/[
     elements, mol, valence, rings, aromaticity, canon, stereo, sanitization,
     descriptors, qed, query, smarts, substruct, geometry, hydrogens, molfile, sdf, bitvect,
-    fingerprints, selfies,
+    fingerprints, selfies, depict, svg,
   ]
 import chem/smiles/[parser, writer]
 
 export
   elements, mol, valence, rings, aromaticity, canon, stereo, sanitization, descriptors, qed,
-  query, smarts, substruct, geometry, hydrogens, molfile, sdf, bitvect, fingerprints, selfies, parser, writer
+  query, smarts, substruct, geometry, hydrogens, molfile, sdf, bitvect, fingerprints, selfies, depict, svg,
+  parser, writer
 
 proc canonicalSmiles*(smiles: string): string =
   ## Convenience: parse a SMILES string and write it back canonically.

@@ -10,7 +10,8 @@
 ## Query features (atom lists, query bond types, S-groups) are not read.
 
 import std/[strutils, sequtils, tables, math, parseutils]
-import ./[mol, elements, valence, aromaticity, geometry, sanitization, stereo, canon, hydrogens]
+import ./[mol, elements, valence, aromaticity, geometry, sanitization, stereo, canon, hydrogens,
+          depict]
 
 type
   MolfileError* = object of ChemError
@@ -358,7 +359,7 @@ func writtenValence(m: Mol; i: int): int =
   ## wrong, else -1.
   if defaultImplicitHCount(m, i) == totalHCount(m, i): -1 else: totalValence(m, i)
 
-proc unspecifiedStereoBonds(m: Mol): seq[bool] =
+proc unspecifiedStereoBonds*(m: Mol): seq[bool] =
   ## Double bonds without cis/trans that could have it (see
   ## `stereo.assignStereo`): written as "either" so that readers don't take
   ## E/Z from the drawing.
@@ -475,10 +476,19 @@ proc writeV3000(p: Prepared; name: string): string =
   result.add "M  V30 END CTAB\n"
   result.add "M  END\n"
 
-proc toMolBlock*(m: Mol; name = ""; v3000 = false; kekule = true): string =
+proc toMolBlock*(m: Mol; name = ""; v3000 = false; kekule = true; layout = true): string =
   ## Writes `m` as a molfile: V2000, or V3000 when asked or when `m` has
   ## more than 999 atoms or bonds. With `kekule` (default) aromatic bonds
   ## are written as single and double bonds (as RDKit does), if possible.
-  let p = prepare(m, kekule)
+  ## A molecule without coordinates gets a 2D layout (see `depict`), so
+  ## that its stereo is in the drawing; without `layout`, or if no wedge
+  ## can show some chiral atom there, it is written with zero coordinates
+  ## and its tetrahedral stereo as atom parities.
+  var p: Prepared
+  if m.coords.len == 0 and layout:
+    try: p = prepare(with2DCoords(m), kekule)
+    except ChemError: p = prepare(m, kekule)
+  else:
+    p = prepare(m, kekule)
   if v3000 or m.numAtoms > 999 or m.numBonds > 999: writeV3000(p, name)
   else: writeV2000(p, name)

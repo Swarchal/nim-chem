@@ -14,10 +14,10 @@ same file (compared as RDKit canonical isomeric SMILES of our SMILES output),
 and the name and data items must survive. Then our rewrite of the file
 (V2000 and V3000) must read back in RDKit as the same structure, also with
 hydrogens added (`--addhs`: checks their placement keeps the stereo). Finally,
-SD files we write from SMILES (no coordinates) must read back in RDKit as
-the same constitution, and in our reader as the same structure apart from
-double-bond E/Z (tetrahedral stereo travels in the atom parities), and
-our SMILES with hydrogens added must read back in RDKit as the input.
+SD files we write from SMILES (laid out in 2D) must read back as the same
+structure, stereo included, in RDKit and in our reader (see
+tools/rdkit_depict_check.py for the layouts themselves), and our SMILES
+with hydrogens added must read back in RDKit as the input.
 """
 import io, os, random, subprocess, sys
 from collections import Counter
@@ -111,7 +111,7 @@ for m in sample:
 check_read(f"stereoisomers, V2000 3D ({len(embedded)} embedded)", [Chem.RemoveHs(m) for m in embedded])
 check_read(f"stereoisomers, V2000 3D with H atoms", embedded)
 
-# writing from SMILES: no coordinates
+# writing from SMILES: laid out in 2D
 for label, ms in [("NCI", mols), ("stereoisomers", stereo)]:
     # name each record by its line so skipped SMILES don't shift the rest
     smis = [Chem.MolToSmiles(m) for m in ms]
@@ -127,15 +127,12 @@ for label, ms in [("NCI", mols), ("stereoisomers", stereo)]:
         r, o = back.get(k), ours[k]
         if r is None or Chem.MolToSmiles(r, isomericSmiles=False) != canon(s, False):
             stats["rdkit_constitution"] += 1
-        # our round trip: same, apart from double-bond E/Z
-        t = Chem.MolFromSmiles(s)
-        for b in t.GetBonds():
-            b.SetStereo(Chem.BondStereo.STEREONONE)
-            b.SetBondDir(Chem.BondDir.NONE)
-        if canon(o) != canon(Chem.MolToSmiles(t)):
+        elif Chem.MolToSmiles(r) != canon(s):
+            stats["rdkit_stereo"] += 1
+        if canon(o) != canon(s):
             stats["our_roundtrip"] += 1
             if stats["our_roundtrip"] <= 3: print("   ", s, o)
-    print(f"== {label}, written from SMILES (0D): {dict(stats)}")
+    print(f"== {label}, written from SMILES (2D layout): {dict(stats)}")
 
 # hydrogens added to molecules from SMILES
 for label, ms in [("NCI", mols), ("stereoisomers", stereo)]:

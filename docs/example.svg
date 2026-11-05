@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="750.0" height="400.0" viewBox="0 0 750.0 400.0" font-family="sans-serif" font-size="13.5">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<g transform="translate(0.0,0.0)">
+<path d="M 157.1,54.7 L 129.1,43.7" stroke="#ff8080" stroke-width="10.5" stroke-linecap="round"/>
+<path d="M 157.1,54.7 L 180.5,36.0" stroke="#ff8080" stroke-width="10.5" stroke-linecap="round"/>
+<circle cx="157.1" cy="54.7" r="9.0" fill="#ff8080"/>
+<circle cx="129.1" cy="43.7" r="9.0" fill="#ff8080"/>
+<circle cx="180.5" cy="36.0" r="9.0" fill="#ff8080"/>
+<path d="M 61.8,73.0 L 80.4,96.5" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 77.9,95.5 L 73.5,106.8" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 73.5,106.8 L 69.1,118.0" stroke="#ff0000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 83.0,97.5 L 78.5,108.8" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 78.5,108.8 L 74.1,120.0" stroke="#ff0000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 80.4,96.5 L 92.4,94.7" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 92.4,94.7 L 104.4,92.9" stroke="#ff0000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 115.5,94.2 L 126.8,98.6" stroke="#ff0000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 126.8,98.6 L 138.0,103.1" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 138.0,103.1 L 142.5,132.7" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 144.0,106.7 L 147.2,127.5" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 142.5,132.7 L 170.4,143.7" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 170.4,143.7 L 193.9,125.0" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 170.5,136.7 L 187.0,123.6" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 193.9,125.0 L 189.4,95.4" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 189.4,95.4 L 161.5,84.4" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 183.3,98.7 L 163.7,91.1" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 138.0,103.1 L 161.5,84.4" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 161.5,84.4 L 157.1,54.7" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 158.1,52.2 L 146.8,47.8" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 146.8,47.8 L 135.5,43.3" stroke="#ff0000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 156.1,57.2 L 144.8,52.8" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 144.8,52.8 L 133.6,48.4" stroke="#ff0000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 157.1,54.7 L 166.5,47.2" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 166.5,47.2 L 176.0,39.6" stroke="#ff0000" stroke-width="2.0" stroke-linecap="round"/>
+<text x="69.5" y="129.2" text-anchor="middle" fill="#ff0000">O</text>
+<text x="110.1" y="96.8" text-anchor="middle" fill="#ff0000">O</text>
+<text x="129.1" y="48.4" text-anchor="middle" fill="#ff0000">O</text>
+<text x="180.5" y="40.8" text-anchor="middle" fill="#ff0000">O</text>
+<text x="184.6" y="40.8" text-anchor="start" fill="#ff0000">H</text>
+<text x="125.0" y="192.9" text-anchor="middle">aspirin</text>
+</g>
+<g transform="translate(250.0,0.0)">
+<path d="M 178.9,78.0 L 195.7,59.1 L 190.7,55.6 Z" fill="#000000" stroke="#000000" stroke-width="0.8"/>
+<path d="M 178.9,78.0 L 165.8,56.5" stroke="#000000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 165.8,56.5 L 140.7,57.1" stroke="#000000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 128.6,79.1 L 143.4,58.5 L 138.1,55.6 Z" fill="#000000" stroke="#000000" stroke-width="0.8"/>
+<path d="M 128.6,79.1 L 141.7,100.6" stroke="#000000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 139.2,104.1 L 140.1,104.5" stroke="#000000" stroke-width="1.3" stroke-linecap="round"/>
+<path d="M 136.8,107.5 L 138.5,108.4" stroke="#000000" stroke-width="1.3" stroke-linecap="round"/>
+<path d="M 134.3,110.9 L 137.0,112.4" stroke="#000000" stroke-width="1.3" stroke-linecap="round"/>
+<path d="M 131.9,114.3 L 135.4,116.3" stroke="#000000" stroke-width="1.3" stroke-linecap="round"/>
+<path d="M 129.4,117.8 L 133.8,120.2" stroke="#000000" stroke-width="1.3" stroke-linecap="round"/>
+<path d="M 127.0,121.2 L 132.2,124.1" stroke="#000000" stroke-width="1.3" stroke-linecap="round"/>
+<path d="M 129.6,122.7 L 104.5,123.2" stroke="#000000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 104.5,123.2 L 91.4,101.7" stroke="#000000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 91.4,101.7 L 66.3,102.3" stroke="#000000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 87.5,97.3 L 70.0,97.7" stroke="#000000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 66.3,102.3 L 53.2,80.8" stroke="#000000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 53.2,78.6 L 43.0,78.8" stroke="#000000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 43.0,78.8 L 32.9,79.0" stroke="#ff0000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 53.3,83.1 L 43.1,83.3" stroke="#000000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 43.1,83.3 L 33.0,83.5" stroke="#ff0000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 53.2,80.8 L 65.3,58.8" stroke="#000000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 65.3,58.8 L 90.4,58.2" stroke="#000000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 90.4,58.2 L 103.5,79.7" stroke="#000000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 128.6,79.1 L 103.5,79.7" stroke="#000000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 91.4,101.7 L 103.5,79.7" stroke="#000000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 99.3,79.3 L 99.3,80.3" stroke="#000000" stroke-width="1.3" stroke-linecap="round"/>
+<path d="M 95.1,78.9 L 95.1,80.9" stroke="#000000" stroke-width="1.3" stroke-linecap="round"/>
+<path d="M 90.9,78.5 L 91.0,81.5" stroke="#000000" stroke-width="1.3" stroke-linecap="round"/>
+<path d="M 86.7,78.1 L 86.8,82.1" stroke="#000000" stroke-width="1.3" stroke-linecap="round"/>
+<path d="M 82.5,77.6 L 82.6,82.7" stroke="#000000" stroke-width="1.3" stroke-linecap="round"/>
+<path d="M 78.3,77.2 L 78.4,83.3" stroke="#000000" stroke-width="1.3" stroke-linecap="round"/>
+<path d="M 141.7,100.6 L 166.8,100.1" stroke="#000000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 178.9,78.0 L 166.8,100.1" stroke="#000000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 166.8,100.1 L 181.9,120.4 L 186.2,116.3 Z" fill="#000000" stroke="#000000" stroke-width="0.8"/>
+<path d="M 184.0,118.4 L 206.8,107.6" stroke="#000000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 206.8,107.6 L 203.6,82.7" stroke="#000000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 178.9,78.0 L 203.6,82.7" stroke="#000000" stroke-width="1.7" stroke-linecap="round"/>
+<path d="M 203.6,82.7 L 220.4,71.0 L 216.3,66.6 Z" fill="#000000" stroke="#000000" stroke-width="0.8"/>
+<text x="28.1" y="85.3" text-anchor="middle" fill="#ff0000">O</text>
+<text x="221.9" y="69.4" text-anchor="middle" fill="#ff0000">O</text>
+<text x="225.3" y="69.4" text-anchor="start" fill="#ff0000">H</text>
+<text x="125.0" y="192.9" text-anchor="middle">testosterone</text>
+</g>
+<g transform="translate(500.0,0.0)">
+<path d="M 46.8,63.0 L 54.4,72.5" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 54.4,72.5 L 62.0,81.9" stroke="#0000ff" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 64.1,92.1 L 60.9,103.7" stroke="#0000ff" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 60.9,103.7 L 57.7,115.4" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 57.7,115.4 L 67.8,122.0" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 67.8,122.0 L 77.9,128.7" stroke="#0000ff" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 63.7,112.9 L 72.3,118.5" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 72.3,118.5 L 80.9,124.2" stroke="#0000ff" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 87.3,128.2 L 96.7,120.7" stroke="#0000ff" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 96.7,120.7 L 106.2,113.1" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 106.2,113.1 L 95.6,85.0" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 99.5,110.8 L 92.1,91.2" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 71.4,86.2 L 83.5,85.6" stroke="#0000ff" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 83.5,85.6 L 95.6,85.0" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 95.6,85.0 L 114.6,61.8" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 117.1,60.9 L 112.8,49.5" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 112.8,49.5 L 108.5,38.2" stroke="#ff0000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 112.0,62.8 L 107.8,51.5" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 107.8,51.5 L 103.5,40.1" stroke="#ff0000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 114.6,61.8 L 126.5,63.8" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 126.5,63.8 L 138.4,65.7" stroke="#0000ff" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 147.9,62.2 L 155.5,52.8" stroke="#0000ff" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 155.5,52.8 L 163.2,43.4" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 146.2,72.1 L 150.5,83.4" stroke="#0000ff" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 150.5,83.4 L 154.8,94.7" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 154.4,97.4 L 166.3,99.3" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 166.3,99.3 L 178.2,101.3" stroke="#ff0000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 155.2,92.1 L 167.2,94.0" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 167.2,94.0 L 179.1,96.0" stroke="#ff0000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 154.8,94.7 L 147.1,104.1" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 147.1,104.1 L 139.5,113.4" stroke="#0000ff" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 106.2,113.1 L 118.1,115.0" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 118.1,115.0 L 130.1,117.0" stroke="#0000ff" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 137.8,123.4 L 142.1,134.7" stroke="#0000ff" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 142.1,134.7 L 146.4,146.0" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<text x="65.6" y="91.2" text-anchor="middle" fill="#0000ff">N</text>
+<text x="82.8" y="136.6" text-anchor="middle" fill="#0000ff">N</text>
+<text x="104.0" y="38.5" text-anchor="middle" fill="#ff0000">O</text>
+<text x="144.2" y="71.4" text-anchor="middle" fill="#0000ff">N</text>
+<text x="184.4" y="104.3" text-anchor="middle" fill="#ff0000">O</text>
+<text x="135.8" y="122.7" text-anchor="middle" fill="#0000ff">N</text>
+<text x="125.0" y="192.9" text-anchor="middle">caffeine</text>
+</g>
+<g transform="translate(0.0,200.0)">
+<path d="M 61.9,107.1 L 71.3,114.7" stroke="#ff0000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 71.3,114.7 L 80.7,122.3" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 103.8,112.7 L 104.2,113.8" stroke="#000000" stroke-width="1.6" stroke-linecap="round"/>
+<path d="M 98.9,114.0 L 99.8,116.2" stroke="#000000" stroke-width="1.6" stroke-linecap="round"/>
+<path d="M 94.0,115.2 L 95.3,118.6" stroke="#000000" stroke-width="1.6" stroke-linecap="round"/>
+<path d="M 89.2,116.4 L 90.9,120.9" stroke="#000000" stroke-width="1.6" stroke-linecap="round"/>
+<path d="M 84.3,117.7 L 86.4,123.3" stroke="#000000" stroke-width="1.6" stroke-linecap="round"/>
+<path d="M 79.4,118.9 L 82.0,125.6" stroke="#000000" stroke-width="1.6" stroke-linecap="round"/>
+<path d="M 108.7,111.5 L 118.1,119.1" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 118.1,119.1 L 127.5,126.7" stroke="#ff0000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 137.5,128.2 L 148.7,123.9" stroke="#ff0000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 148.7,123.9 L 160.0,119.5" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 160.0,119.5 L 169.4,127.1" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 169.4,127.1 L 178.9,134.7" stroke="#ff0000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 160.0,119.5 L 164.7,89.9" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 164.7,89.9 L 188.5,84.5 L 185.9,77.8 Z" fill="#000000" stroke="#000000" stroke-width="1.0"/>
+<path d="M 164.7,89.9 L 141.3,71.0" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 142.5,67.1 L 141.3,67.0" stroke="#000000" stroke-width="1.6" stroke-linecap="round"/>
+<path d="M 143.7,63.3 L 141.4,62.9" stroke="#000000" stroke-width="1.6" stroke-linecap="round"/>
+<path d="M 145.0,59.4 L 141.4,58.8" stroke="#000000" stroke-width="1.6" stroke-linecap="round"/>
+<path d="M 146.2,55.5 L 141.4,54.7" stroke="#000000" stroke-width="1.6" stroke-linecap="round"/>
+<path d="M 147.4,51.6 L 141.5,50.7" stroke="#000000" stroke-width="1.6" stroke-linecap="round"/>
+<path d="M 148.6,47.7 L 141.5,46.6" stroke="#000000" stroke-width="1.6" stroke-linecap="round"/>
+<path d="M 141.3,71.0 L 113.3,81.8" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 108.7,111.5 L 113.3,81.8" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 113.3,81.8 L 96.8,63.9 L 92.2,69.5 Z" fill="#000000" stroke="#000000" stroke-width="1.0"/>
+<text x="57.4" y="108.2" text-anchor="middle" fill="#ff0000">O</text>
+<text x="53.3" y="108.2" text-anchor="end" fill="#ff0000">H</text>
+<text x="132.0" y="135.0" text-anchor="middle" fill="#ff0000">O</text>
+<text x="183.4" y="143.1" text-anchor="middle" fill="#ff0000">O</text>
+<text x="187.4" y="143.1" text-anchor="start" fill="#ff0000">H</text>
+<text x="192.6" y="83.8" text-anchor="middle" fill="#ff0000">O</text>
+<text x="196.7" y="83.8" text-anchor="start" fill="#ff0000">H</text>
+<text x="145.9" y="46.1" text-anchor="middle" fill="#ff0000">O</text>
+<text x="150.0" y="46.1" text-anchor="start" fill="#ff0000">H</text>
+<text x="90.0" y="67.7" text-anchor="middle" fill="#ff0000">O</text>
+<text x="85.9" y="67.7" text-anchor="end" fill="#ff0000">H</text>
+<text x="125.0" y="192.9" text-anchor="middle">glucose</text>
+</g>
+<g transform="translate(250.0,200.0)">
+<path d="M 167.3,83.6 L 191.8,66.3" stroke="#ff8080" stroke-width="10.5" stroke-linecap="round"/>
+<path d="M 167.3,83.6 L 169.9,113.4" stroke="#ff8080" stroke-width="10.5" stroke-linecap="round"/>
+<circle cx="167.3" cy="83.6" r="9.0" fill="#ff8080"/>
+<circle cx="191.8" cy="66.3" r="9.0" fill="#ff8080"/>
+<circle cx="169.9" cy="113.4" r="9.0" fill="#ff8080"/>
+<path d="M 36.6,80.1 L 63.8,92.8" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 63.8,92.8 L 88.3,75.5" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 70.6,94.6 L 87.7,82.5" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 88.3,75.5 L 115.5,88.2" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 115.5,88.2 L 140.1,70.9" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 122.3,90.0 L 139.5,77.9" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 140.1,70.9 L 167.3,83.6" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 168.8,85.8 L 178.7,78.8" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 178.7,78.8 L 188.6,71.9" stroke="#ff0000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 165.7,81.3 L 175.6,74.4" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 175.6,74.4 L 185.5,67.4" stroke="#ff0000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 167.3,83.6 L 168.4,95.6" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 168.4,95.6 L 169.4,107.7" stroke="#ff0000" stroke-width="2.0" stroke-linecap="round"/>
+<text x="191.8" y="71.0" text-anchor="middle" fill="#ff0000">O</text>
+<text x="169.9" y="118.2" text-anchor="middle" fill="#ff0000">O</text>
+<text x="174.0" y="118.2" text-anchor="start" fill="#ff0000">H</text>
+<text x="125.0" y="192.9" text-anchor="middle">sorbic acid</text>
+</g>
+<g transform="translate(500.0,200.0)">
+<path d="M 96.8,104.9 L 70.8,119.9" stroke="#ff8080" stroke-width="10.5" stroke-linecap="round"/>
+<path d="M 96.8,104.9 L 122.8,119.9" stroke="#ff8080" stroke-width="10.5" stroke-linecap="round"/>
+<circle cx="96.8" cy="104.9" r="9.0" fill="#ff8080"/>
+<circle cx="70.8" cy="119.9" r="9.0" fill="#ff8080"/>
+<circle cx="122.8" cy="119.9" r="9.0" fill="#ff8080"/>
+<path d="M 96.8,74.9 L 77.7,59.7 L 74.1,65.9 Z" fill="#000000" stroke="#000000" stroke-width="1.0"/>
+<path d="M 96.8,74.9 L 122.8,59.9" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 122.8,59.9 L 148.8,74.9" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 148.8,74.9 L 174.8,59.9" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 155.4,77.3 L 173.6,66.8" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 174.8,59.9 L 200.8,74.9" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 200.8,74.9 L 200.8,104.9" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 195.4,79.4 L 195.4,100.4" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 200.8,104.9 L 174.8,119.9" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 174.8,119.9 L 148.8,104.9" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 173.6,112.9 L 155.4,102.4" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 148.8,74.9 L 148.8,104.9" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 96.8,74.9 L 96.8,104.9" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 95.5,102.5 L 85.0,108.6" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 85.0,108.6 L 74.5,114.6" stroke="#ff0000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 98.2,107.2 L 87.7,113.3" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 87.7,113.3 L 77.2,119.3" stroke="#ff0000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 96.8,104.9 L 107.3,110.9" stroke="#000000" stroke-width="2.0" stroke-linecap="round"/>
+<path d="M 107.3,110.9 L 117.8,117.0" stroke="#ff0000" stroke-width="2.0" stroke-linecap="round"/>
+<text x="70.8" y="64.6" text-anchor="middle" fill="#0000ff">N</text>
+<text x="66.8" y="64.6" text-anchor="end" fill="#0000ff">H<tspan font-size="9.4" dy="3.4">3</tspan></text>
+<text x="74.9" y="64.6" text-anchor="start" fill="#0000ff"><tspan font-size="9.4" dy="-5.4">+</tspan></text>
+<text x="70.8" y="124.6" text-anchor="middle" fill="#ff0000">O</text>
+<text x="122.8" y="124.6" text-anchor="middle" fill="#ff0000">O</text>
+<text x="126.9" y="124.6" text-anchor="start" fill="#ff0000"><tspan font-size="9.4" dy="-5.4">−</tspan></text>
+<text x="125.0" y="192.9" text-anchor="middle">phenylalanine</text>
+</g>
+</svg>

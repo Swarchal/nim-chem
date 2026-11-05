@@ -171,9 +171,15 @@ suite "molfile writing":
       check parseMolBlock(m.toMolBlock(v3000 = true)).toSmiles == m.toSmiles
       check parseMolBlock(m.toMolBlock(kekule = false)).toSmiles == m.toSmiles
 
-  test "without coordinates E/Z is lost, tetrahedral stereo kept":
+  test "without coordinates a layout keeps all stereo":
     let m = parseSmiles("C[C@H](F)/C=C/Cl")
-    check parseMolBlock(m.toMolBlock).toSmiles == canonicalSmiles("C[C@H](F)C=CCl")
+    let back = parseMolBlock(m.toMolBlock)
+    check back.toSmiles == m.toSmiles
+    check back.coords.len == m.numAtoms and not back.is3D
+    # without the layout: zero coordinates, E/Z lost, tetrahedral stereo
+    # kept as parities
+    check parseMolBlock(m.toMolBlock(layout = false)).toSmiles ==
+      canonicalSmiles("C[C@H](F)C=CCl")
 
   test "with coordinates all stereo is kept":
     for s in [wedged2D, embedded3D]:
