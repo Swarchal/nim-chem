@@ -70,14 +70,14 @@ proc readIntOr(p: var Parser; default: int): int =
 func elementExpr(z: int; aromatic: bool): Expr[AtomPrim] =
   andE(atomPrim(apAtomicNum, z), atomPrim(if aromatic: apAromatic else: apAliphatic))
 
-proc parseSmartsInto(p: var Parser)
-proc assignDoubleBondStereo(p: var Parser)
+proc parseSmartsInto(p: var Parser) {.gcsafe.}
+proc assignDoubleBondStereo(p: var Parser) {.gcsafe.}
 
 # ---------------------------------------------------------------------------
 # Expressions
 
-proc parseExpr[P](p: var Parser; parsePrim: proc (p: var Parser): Expr[P] {.nimcall.};
-                  continues: proc (c: char): bool {.nimcall.}; always: P): Expr[P] =
+proc parseExpr[P](p: var Parser; parsePrim: proc (p: var Parser): Expr[P] {.nimcall, gcsafe.};
+                  continues: proc (c: char): bool {.nimcall, gcsafe.}; always: P): Expr[P] =
   ## `;` (lowest precedence) over `,` over `&` or juxtaposition over `!`.
   ## `parsePrim` may return nil for tokens that only set parser state;
   ## `continues(c)` says whether `c` can follow within the same `&` term.
@@ -291,7 +291,7 @@ proc parseBondExpr(p: var Parser): Expr[BondPrim] =
 # ---------------------------------------------------------------------------
 # Graph
 
-proc parseSmartsInto(p: var Parser) =
+proc parseSmartsInto(p: var Parser) {.gcsafe.} =
   var prev = -1
   var branchStack: seq[int]
   var pending: Expr[BondPrim] = nil
@@ -398,7 +398,7 @@ proc parseSmartsInto(p: var Parser) =
   if p.q.numAtoms == 0: p.fail("empty SMARTS", 0)
   p.assignDoubleBondStereo()
 
-proc assignDoubleBondStereo(p: var Parser) =
+proc assignDoubleBondStereo(p: var Parser) {.gcsafe.} =
   ## Cis/trans from `/` `\` marks around bonds that are plain `=` queries.
   let isDouble = p.q.bonds.mapIt(it.expr.op == eoPrim and it.expr.prim == bpDouble)
   for st in stereoFromMarks(p.q, isDouble, p.marks):

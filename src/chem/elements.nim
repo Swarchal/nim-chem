@@ -4,6 +4,7 @@
 ## monoisotopic masses are those of the most abundant isotope.
 
 import std/tables
+import ./isotopes
 
 type
   ElementInfo* = object
@@ -139,20 +140,6 @@ const elementTable*: array[0..118, ElementInfo] = [
 
 const maxAtomicNumber* = elementTable.high
 
-## Exact masses of commonly used isotope labels: (Z, mass number, mass).
-const isotopeTable = [
-  (1, 1, 1.00782503207), (1, 2, 2.0141017778), (1, 3, 3.0160492777),
-  (6, 11, 11.0114336), (6, 12, 12.0), (6, 13, 13.0033548378), (6, 14, 14.003241989),
-  (7, 14, 14.0030740048), (7, 15, 15.0001088982),
-  (8, 16, 15.99491461956), (8, 17, 16.99913170), (8, 18, 17.9991610),
-  (9, 18, 18.0009380), (9, 19, 18.99840322),
-  (15, 31, 30.97376163), (15, 32, 31.97390727),
-  (16, 32, 31.97207100), (16, 34, 33.96786690), (16, 35, 34.96903216),
-  (17, 35, 34.96885268), (17, 37, 36.96590259),
-  (35, 79, 78.9183371), (35, 81, 80.9162906),
-  (53, 123, 122.905589), (53, 125, 124.9046302), (53, 127, 126.904473), (53, 131, 130.9061246),
-]
-
 func isValidElement*(z: int): bool {.inline.} = z in 0..maxAtomicNumber
 
 func symbol*(z: int): string = elementTable[z].symbol
@@ -170,11 +157,12 @@ func atomicNumber*(sym: string): int =
   symbolTable.getOrDefault(sym, -1)
 
 func isotopeMass*(z, massNumber: int): float =
-  ## Exact mass of a specific isotope. Falls back to the mass number for
-  ## isotopes not in the built-in table.
-  for (iz, iso, m) in isotopeTable:
-    if iz == z and iso == massNumber: return m
-  float(massNumber)
+  ## Exact mass of a specific isotope (3,111 known, see `isotopes`). Falls
+  ## back to the mass number for isotopes not in the table.
+  if z notin isotopeMasses.low..isotopeMasses.high: return float(massNumber)
+  let (first, masses) = isotopeMasses[z]
+  let k = massNumber - first
+  if k in 0..masses.high: masses[k] else: float(massNumber)
 
 const
   organicSubset* = ["B", "C", "N", "O", "P", "S", "F", "Cl", "Br", "I"]

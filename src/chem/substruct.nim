@@ -65,7 +65,9 @@ proc initTarget(m: Mol; needs: set[QueryNeeds]; numRecursive: int): Target =
   result.recursive = newSeqWith(numRecursive, newSeqWith(n, -1'i8))
   result.recMatchers = newSeq[Matcher](numRecursive)
 
-proc matchesAt(t: var Target; p: AtomPrim; atom: int): bool
+proc matchesAt(t: var Target; p: AtomPrim; atom: int): bool {.gcsafe.}
+  ## (forward declaration, for the recursion through `$()`; GC-safety
+  ## isn't inferred through one, so it is stated)
 
 proc atomPrimMatches(t: var Target; p: AtomPrim; i: int): bool =
   let a = t.m.atoms[i]
@@ -178,7 +180,7 @@ proc stereoMatches(mt: Matcher; t: Target): bool =
   true
 
 proc search(mt: var Matcher; t: var Target; depth: int;
-            onMatch: proc (map: seq[int]): bool): bool =
+            onMatch: proc (map: seq[int]): bool {.gcsafe.}): bool =
   ## Extends the partial match from `order[depth]`. `onMatch` is called
   ## for each complete match and returns false to stop the search; the
   ## result is false once stopped.
@@ -213,7 +215,7 @@ proc search(mt: var Matcher; t: var Target; depth: int;
     for (ta, tb) in t.m.adj[mt.map[par]]: tryAtom(ta, tb)
   true
 
-proc matchesAt(t: var Target; p: AtomPrim; atom: int): bool =
+proc matchesAt(t: var Target; p: AtomPrim; atom: int): bool {.gcsafe.} =
   ## Whether recursive query `p.sub` matches with its first atom on `atom`.
   if t.recMatchers[p.subId].order.len == 0:
     t.recMatchers[p.subId] = initMatcher(addr p.sub[], t.m[].numAtoms, t.useChirality)
