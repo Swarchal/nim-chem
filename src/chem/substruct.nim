@@ -19,21 +19,32 @@ type
     used: seq[bool]      ## target atom already mapped
     useChirality: bool
 
-  Target = object
-    ## The molecule being searched (borrowed for the duration of one
-    ## search) and the per-atom properties the query needs, computed once.
-    m: ptr Mol
+  MolProps = object
+    ## Per-atom properties queries look at, computed once per molecule.
     hCount: seq[int]        ## hydrogens, including H atoms (`H`)
     hCountNoAtoms: seq[int] ## hydrogens not stored as atoms (`h`, `X`)
     valence, ringCount, minRing, ringBondCount: seq[int]
     ringBond: seq[bool]
+
+  PreparedMol* = object
+    ## A molecule with everything SMARTS primitives look at (H counts,
+    ## rings, valences) computed up front, for matching many queries
+    ## against one molecule. See `prepare`.
+    mol: Mol
+    props: MolProps
+    have: set[QueryNeeds]
+
+  Target = object
+    ## The molecule being searched and its properties (both borrowed for
+    ## the duration of one search), plus the search's recursive-query cache.
+    m: ptr Mol
+    p: ptr MolProps
     recursive: seq[seq[int8]]   ## per recursive query, per atom: -1 unknown, 0/1
     recMatchers: seq[Matcher]   ## per recursive query (empty `order` until used)
     useChirality: bool          ## also applies inside recursive queries
 
-proc initTarget(m: Mol; needs: set[QueryNeeds]; numRecursive: int): Target =
+func computeProps(m: Mol; needs: set[QueryNeeds]): MolProps =
   let n = m.numAtoms
-  result.m = addr m
   if qnHydrogens in needs:
     result.hCount = newSeq[int](n)
     result.hCountNoAtoms = newSeq[int](n)
@@ -62,8 +73,24 @@ proc initTarget(m: Mol; needs: set[QueryNeeds]; numRecursive: int): Target =
     except ChemError: k = m
     result.valence = newSeq[int](n)
     for i in 0..<n: result.valence[i] = totalValence(k, i)
-  result.recursive = newSeqWith(numRecursive, newSeqWith(n, -1'i8))
-  result.recMatchers = newSeq[Matcher](numRecursive)
+
+func prepare*(m: sink Mol; needs = {QueryNeeds.low..QueryNeeds.high}): PreparedMol =
+  ## `m` with the properties queries use computed once: by default all of
+  ## them, or only `needs` (see `query.needs`) when all the queries to be
+  ## matched need no more.
+  let props = computeProps(m, needs)
+  PreparedMol(mol: m, props: props, have: needs)
+
+func checkNeeds(p: PreparedMol; q: Query) =
+  if q.needs - p.have != {}:
+    raise newException(ValueError, "the query needs more than was prepared: " & $(q.needs - p.have))
+
+func mol*(p: PreparedMol): lent Mol {.inline.} = p.mol
+
+func initTarget(m: ptr Mol; p: ptr MolProps; q: Query; useChirality: bool): Target =
+  Target(m: m, p: p, useChirality: useChirality,
+         recursive: newSeqWith(q.numRecursive, newSeqWith(m[].numAtoms, -1'i8)),
+         recMatchers: newSeq[Matcher](q.numRecursive))
 
 proc matchesAt(t: var Target; p: AtomPrim; atom: int): bool {.gcsafe.}
   ## (forward declaration, for the recursion through `$()`; GC-safety
@@ -78,15 +105,15 @@ proc atomPrimMatches(t: var Target; p: AtomPrim; i: int): bool =
   of apAliphatic: not a.aromatic
   of apIsotope: a.isotope == p.value
   of apCharge: a.charge == p.value
-  of apTotalH: t.hCount[i] == p.value
-  of apImplicitH: t.hCountNoAtoms[i] == p.value
+  of apTotalH: t.p.hCount[i] == p.value
+  of apImplicitH: t.p.hCountNoAtoms[i] == p.value
   of apDegree: t.m.adj[i].len == p.value
-  of apConnectivity: t.m.adj[i].len + t.hCountNoAtoms[i] == p.value
-  of apValence: t.valence[i] == p.value
-  of apRingCount: t.ringCount[i] == p.value
-  of apRingSize: t.minRing[i] == p.value
-  of apRingBonds: t.ringBondCount[i] == p.value
-  of apInRing: t.ringBondCount[i] > 0
+  of apConnectivity: t.m.adj[i].len + t.p.hCountNoAtoms[i] == p.value
+  of apValence: t.p.valence[i] == p.value
+  of apRingCount: t.p.ringCount[i] == p.value
+  of apRingSize: t.p.minRing[i] == p.value
+  of apRingBonds: t.p.ringBondCount[i] == p.value
+  of apInRing: t.p.ringBondCount[i] > 0
   of apRecursive:
     if t.recursive[p.subId][i] < 0:
       t.recursive[p.subId][i] = int8(matchesAt(t, p, i))
@@ -111,7 +138,7 @@ func bondMatches(t: Target; e: Expr[BondPrim]; bi: int): bool =
     of bpQuadruple: order == boQuadruple
     of bpAromatic: order == boAromatic
     of bpAny: true
-    of bpRing: t.ringBond[bi]
+    of bpRing: t.p.ringBond[bi]
   of eoNot: not bondMatches(t, e.arg, bi)
   of eoAnd: e.args.allIt(bondMatches(t, it, bi))
   of eoOr: e.args.anyIt(bondMatches(t, it, bi))
@@ -215,14 +242,9 @@ proc search(mt: var Matcher; t: var Target; depth: int;
     for (ta, tb) in t.m.adj[mt.map[par]]: tryAtom(ta, tb)
   true
 
-proc matchesAt(t: var Target; p: AtomPrim; atom: int): bool {.gcsafe.} =
-  ## Whether recursive query `p.sub` matches with its first atom on `atom`.
-  if t.recMatchers[p.subId].order.len == 0:
-    t.recMatchers[p.subId] = initMatcher(addr p.sub[], t.m[].numAtoms, t.useChirality)
-  if not atomMatches(t, p.sub.atoms[0].expr, atom): return false
-  # the matcher is moved out while searching: the search may evaluate
-  # other recursive queries, which needs `t` (it can't reach this one)
-  var mt = move t.recMatchers[p.subId]
+proc searchFrom(mt: var Matcher; t: var Target; atom: int): bool =
+  ## Whether `mt`'s query matches with its first atom on `atom`.
+  if not atomMatches(t, mt.q.atoms[0].expr, atom): return false
   mt.map[0] = atom
   mt.used[atom] = true
   var found = false
@@ -231,20 +253,23 @@ proc matchesAt(t: var Target; p: AtomPrim; atom: int): bool {.gcsafe.} =
     false)
   mt.map[0] = -1
   mt.used[atom] = false
-  t.recMatchers[p.subId] = move mt
   found
 
-proc substructMatches*(m: Mol; q: Query; uniquify = true; maxMatches = 1000;
-                       useChirality = false): seq[seq[int]] =
-  ## All matches of `q` in `m` (up to `maxMatches`), each giving the
-  ## molecule atom for every query atom. With `uniquify` (default), matches
-  ## covering the same set of atoms are reported once. With `useChirality`,
-  ## query `@`/`@@` and `/` `\` cis/trans must agree with the molecule's
-  ## stereo, which must be specified there (otherwise stereo is ignored).
+proc matchesAt(t: var Target; p: AtomPrim; atom: int): bool {.gcsafe.} =
+  ## Whether recursive query `p.sub` matches with its first atom on `atom`.
+  if t.recMatchers[p.subId].order.len == 0:
+    t.recMatchers[p.subId] = initMatcher(addr p.sub[], t.m[].numAtoms, t.useChirality)
+  # the matcher is moved out while searching: the search may evaluate
+  # other recursive queries, which needs `t` (it can't reach this one)
+  var mt = move t.recMatchers[p.subId]
+  result = searchFrom(mt, t, atom)
+  t.recMatchers[p.subId] = move mt
+
+proc matches(m: ptr Mol; props: ptr MolProps; q: Query; uniquify: bool;
+             maxMatches: int; useChirality: bool): seq[seq[int]] =
   if q.numAtoms == 0 or maxMatches <= 0: return
-  var t = initTarget(m, q.needs, q.numRecursive)
-  t.useChirality = useChirality
-  var mt = initMatcher(addr q, m.numAtoms, useChirality)
+  var t = initTarget(m, props, q, useChirality)
+  var mt = initMatcher(addr q, m[].numAtoms, useChirality)
   var seen: HashSet[seq[int]]
   var found: seq[seq[int]]
   var key = newSeq[int](q.numAtoms)   # reused: copied only when new
@@ -258,27 +283,54 @@ proc substructMatches*(m: Mol; q: Query; uniquify = true; maxMatches = 1000;
     found.len < maxMatches)
   found
 
-proc substructMatch*(m: Mol; q: Query; useChirality = false): seq[int] =
+proc substructMatches*(m: Mol; q: Query; uniquify = true; maxMatches = 1000;
+                       useChirality = false): seq[seq[int]] =
+  ## All matches of `q` in `m` (up to `maxMatches`), each giving the
+  ## molecule atom for every query atom. With `uniquify` (default), matches
+  ## covering the same set of atoms are reported once. With `useChirality`,
+  ## query `@`/`@@` and `/` `\` cis/trans must agree with the molecule's
+  ## stereo, which must be specified there (otherwise stereo is ignored).
+  var props = computeProps(m, q.needs)
+  matches(addr m, addr props, q, uniquify, maxMatches, useChirality)
+
+proc substructMatches*(p: PreparedMol; q: Query; uniquify = true; maxMatches = 1000;
+                       useChirality = false): seq[seq[int]] =
+  p.checkNeeds(q)
+  matches(addr p.mol, addr p.props, q, uniquify, maxMatches, useChirality)
+
+proc substructMatch*(m: Mol | PreparedMol; q: Query; useChirality = false): seq[int] =
   ## The first match of `q` in `m`, or an empty sequence.
   let ms = substructMatches(m, q, uniquify = false, maxMatches = 1,
                             useChirality = useChirality)
   if ms.len > 0: ms[0] else: @[]
 
-proc hasSubstructMatch*(m: Mol; q: Query; useChirality = false): bool =
+proc hasSubstructMatch*(m: Mol | PreparedMol; q: Query; useChirality = false): bool =
   ## Whether `q` occurs in `m`.
   substructMatch(m, q, useChirality).len > 0
+
+proc matchesAt*(p: PreparedMol; q: Query; atoms: openArray[int];
+                useChirality = false): seq[bool] =
+  ## For each of `atoms`, whether a match of `q` has its first query atom
+  ## there (as recursive SMARTS `[$(q)]` would), e.g. to type atoms by the
+  ## first of a list of patterns that fits.
+  result = newSeq[bool](atoms.len)
+  if q.numAtoms == 0: return
+  p.checkNeeds(q)
+  var t = initTarget(addr p.mol, addr p.props, q, useChirality)
+  var mt = initMatcher(addr q, p.mol.numAtoms, useChirality)
+  for k, a in atoms: result[k] = searchFrom(mt, t, a)
 
 func asQuery(q: Mol): Query = toQuery(q)
 proc asQuery(q: string): Query = parseSmarts(q)
 
-proc substructMatches*(m: Mol; q: Mol | string; uniquify = true;
+proc substructMatches*(m: Mol | PreparedMol; q: Mol | string; uniquify = true;
                        maxMatches = 1000; useChirality = false): seq[seq[int]] =
   ## Convenience: a molecule query (see `query.toQuery` for how atoms
   ## compare) or a SMARTS string (see `smarts.parseSmarts`).
   substructMatches(m, asQuery(q), uniquify, maxMatches, useChirality)
 
-proc substructMatch*(m: Mol; q: Mol | string; useChirality = false): seq[int] =
+proc substructMatch*(m: Mol | PreparedMol; q: Mol | string; useChirality = false): seq[int] =
   substructMatch(m, asQuery(q), useChirality)
 
-proc hasSubstructMatch*(m: Mol; q: Mol | string; useChirality = false): bool =
+proc hasSubstructMatch*(m: Mol | PreparedMol; q: Mol | string; useChirality = false): bool =
   hasSubstructMatch(m, asQuery(q), useChirality)

@@ -234,3 +234,21 @@ suite "stereo-aware matching":
           chiralHit("C[C@H](F)Cl", "[C@@H](C)(F)Cl")
     check chiralHit("C/C=C/C", "[$(C/C=C/C)]")
     check not chiralHit("C/C=C/C", "[$(C/C=C\\C)]")
+
+suite "prepared molecules":
+  test "match as the molecule does":
+    let m = parseSmiles("CC(=O)Oc1ccccc1C(=O)O")
+    let p = prepare(m)
+    check p.mol.numAtoms == m.numAtoms
+    for s in ["[OH]", "c[R2]", "[$(C=O)]O", "[v4;!R]", "a:a", "[#6]~[#8]"]:
+      checkpoint s
+      let q = parseSmarts(s)
+      check p.substructMatches(q) == m.substructMatches(q)
+      check p.hasSubstructMatch(s) == m.hasSubstructMatch(s)
+
+  test "matches at given atoms":
+    let p = prepare(parseSmiles("OCC(=O)N"))
+    check p.matchesAt(parseSmarts("[#6]=O"), [0, 1, 2, 3]) == @[false, false, true, false]
+    check p.matchesAt(parseSmarts("O"), [0, 3]) == @[true, true]
+    check p.matchesAt(parseSmarts("OCC=O"), [0, 3]) == @[true, false]   # first atom only
+    check p.matchesAt(Query(), [0]) == @[false]

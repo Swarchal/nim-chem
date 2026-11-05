@@ -415,3 +415,9 @@ proc parseSmarts*(s: string): Query =
   p.parseSmartsInto()
   result = p.q
   result.numRecursive = p.nRecursive
+
+template parsedOnce*(cache: var seq[Query]; patterns: untyped) =
+  ## Fills a pattern cache (typically a `{.threadvar.}`) with the parsed
+  ## `patterns` on first use; `patterns` is only evaluated then.
+  if cache.len == 0:
+    for pattern in patterns: cache.add parseSmarts(pattern)
