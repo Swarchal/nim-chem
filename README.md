@@ -32,6 +32,12 @@ echo tanimoto(fp, parseSmiles("OC(=O)c1ccccc1O").morganFingerprint)   # 0.448...
   with a character position.
 - **SMILES writing**, canonical (default) or in input order, aromatic
   (default) or Kekulé (`toSmiles(kekule = true)`).
+- **SELFIES**: reading (`parseSelfies`, or `selfiesToSmiles`) and writing
+  (`toSelfies`, canonical by default; `smilesToSelfies`, in SMILES order),
+  compatible with the reference `selfies` package (version 2): the same
+  SMILES from decoding, the same SELFIES from encoding a Kekulé SMILES,
+  and its three presets of semantic constraints. `robustAlphabet` gives
+  the symbols every sequence of which decodes to a molecule.
 - **Aromaticity**: Kekulization (`kekulize`, via a blossom matching, so odd
   fused systems like azulene work) and perception (`setAromaticity`, Hückel
   4n+2 over SSSR rings and fused combinations, RDKit-compatible electron
@@ -111,6 +117,7 @@ echo tanimoto(fp, parseSmiles("OC(=O)c1ccccc1O").morganFingerprint)   # 0.448...
 | `chem/geometry` | stereo from coordinates, wedges and atom parities, H placement |
 | `chem/hydrogens` | `removeHs`, `addHs` |
 | `chem/smiles/parser`, `chem/smiles/writer` | SMILES I/O |
+| `chem/selfies` | SELFIES I/O |
 | `chem/descriptors` | formula, masses, counts |
 | `chem/fingerprints` | Morgan fingerprints, atom invariants |
 | `chem/bitvect` | `BitVect`, similarity measures |
@@ -123,6 +130,7 @@ python tools/rdkit_crosscheck.py     # compare against RDKit (needs rdkit)
 python tools/rdkit_smarts_check.py   # substructure search against RDKit
 python tools/rdkit_molfile_check.py  # molfile / SD file I/O against RDKit
 python tools/rdkit_fingerprint_check.py  # Morgan fingerprints against RDKit
+python tools/rdkit_selfies_check.py   # SELFIES against the selfies package
 ```
 
 On RDKit's bundled 5K NCI set (4,991 molecules RDKit can read, written in
@@ -173,6 +181,20 @@ NCI pairs takes 2.3 s (RDKit 3.4 s), or 1.0 s when built with
 `--passC:-mpopcnt` (or `-march=native`) so bit counting uses the CPU
 instruction.
 
+The SELFIES check compares with the reference `selfies` package (2.2) on
+the NCI molecules and stereoisomers: translating RDKit's Kekulé SMILES
+gives exactly the reference encoder's SELFIES, and decoding the
+reference's SELFIES exactly its SMILES; our canonical SELFIES, decoded by
+the reference, is the same molecule (apart from the 12 cage aminals), and
+the same for randomised input. On 40,000 random symbol strings (under all
+three constraint presets, with stereo, charged, isotope and other bracket
+symbols) decoding gives exactly the reference's SMILES. Read as molecules,
+strings of robust-alphabet symbols agree with RDKit on all but 4 of 10,000
+(charged four-membered rings such as `[O-]P1[C+]=[P-][N-]1`, which we
+perceive as aromatic and RDKit does not); with other symbols the two
+valence models disagree on some decoded strings (RDKit accepts Na with
+several bonds; we accept five-bonded N).
+
 ## Known limitations
 
 - **Aromaticity model**: follows RDKit's default model on everything
@@ -180,6 +202,17 @@ instruction.
   only considered up to 6 rings at a time, and neutral boron is never
   aromatic (as in RDKit). With `sanitize = false` no kekulization or
   perception happens, and aromatic flags are kept exactly as written.
+- **SELFIES**: the reference package's attribution maps and its custom
+  constraint dictionaries are not supported (the three presets are).
+  `smilesToSelfies` matches the reference exactly for Kekulé SMILES; an
+  aromatic SMILES is kekulized by our writer first, keeping the atom order
+  but not bracket spellings it doesn't need (`[nH]` in a ring becomes
+  `[N]`, where the reference writes `[NH1]`: the same molecule).
+  Molecules SELFIES can't represent raise `SelfiesError` when encoding:
+  wildcard atoms, quadruple bonds, atoms with more bonds than the
+  constraints allow (e.g. hypervalent iodine under the default ones; pass
+  `strict = false` or another preset), and rings or branches longer than
+  4,095 symbols.
 - **Fingerprints**: Morgan only (no atom-pair, topological-torsion, MACCS
   or RDKit path fingerprints), and without chirality (RDKit's
   `useChirality` needs CIP labels).
